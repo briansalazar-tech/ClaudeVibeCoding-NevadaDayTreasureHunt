@@ -1,0 +1,36 @@
+# Environment variables (document new ones in .env.example instead)
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Data pipeline raw downloads
+data-pipeline/raw/
+
+# SQLite database and photo uploads
+server/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+
+# Logs and test output
+*.log
+npm-debug.log*
+coverage/
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
