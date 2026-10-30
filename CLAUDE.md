@@ -93,6 +93,9 @@ Data model rules:
 Scripts in `data-pipeline/` download and process the map data ahead of time; the app doesn't fetch it live. Rebuilding for a new hunt year means re-running the pipeline (see "Rebuild steps for next year" in `hunt-map-data-sources.MD`).
 
 - Raw downloads go in `data-pipeline/raw/` (gitignored). Processed output goes in `client/public/data/<county>/<layer>.geojson` (committed), along with a `manifest.json` that records per-layer feature counts and the build date.
+- County boundaries are built once for all counties together into `client/public/data/boundaries/`: `counties.geojson`, `county-labels.geojson` (one label point per county), and `outside-mask.geojson` (the dimmed area). Source: Census Cartographic Boundary counties, 2025 vintage, 1:500,000 (`cb_2025_us_county_500k.zip`).
+- Pipeline layout: `src/sources.ts` lists every source URL; each dataset is a step in `src/steps/` with a fetch function and a build function, and `src/fetch.ts` and `src/build.ts` run the steps. Keep the processing in pure functions that take parsed input and return GeoJSON, so they can be unit-tested with small fixtures. `downloadToRaw()` caches downloads. The manifest writer keeps the counts already recorded for counties that aren't in the current run.
+- The data file paths and their types (`DATA_FILES`, `CountyProperties`, `Manifest`) live in `shared/src/data-files.ts`, so the pipeline and the client agree on them.
 - Some sources need a manual download (the HMdb county CSVs, the SHPO PDFs, and possibly BLM SMA). When a script needs one of these, stop and ask the user to save it to `data-pipeline/raw/`, giving the exact URL and file name.
 - Go easy on public APIs: run Overpass queries one at a time, cache the responses in `raw/`, and don't re-download on every run.
 - Deduplicate GNIS features against OSM by name and distance. The earlier build skipped about 1,050 duplicates.
@@ -113,8 +116,11 @@ Phase workflow:
 1. Create a branch for the phase, for example `phase-1-base-map`.
 2. Build the phase. Don't start work that belongs to a later phase.
 3. Run `npm run check` and fix any failures.
-4. Give the user a validation checklist with steps to follow in the running app. **Stop and wait.** Don't merge to `main` or begin the next phase until the user confirms the phase is valid.
-5. After the user confirms, commit, merge the branch into `main`, and push to GitHub (`origin`).
+4. Render the app in a real browser and go through the checklist yourself, against both `npm run dev` and the production build (`vite preview`). A server returning 200 is not enough: map problems such as WebGL, worker, or style errors only show up in a browser. If the Claude in Chrome extension isn't connected, drive Microsoft Edge (installed; Chrome isn't) headlessly with `playwright-core` from the scratchpad, using `channel: 'msedge'` and the SwiftShader flags (`--enable-unsafe-swiftshader --use-angle=swiftshader`). Take screenshots and look at them, and check the console for errors.
+5. Give the user a validation checklist with steps to follow in the running app. **Stop and wait.** Don't merge to `main` or begin the next phase until the user confirms the phase is valid.
+6. After the user confirms, commit, merge the branch into `main` with `--no-ff`, push to GitHub (`origin`), and push the phase branch too.
+
+**Status:** Phase 1 is complete (merged to `main` on 2026-10-29). Next is Phase 2.
 
 ### Phase 1: Base Map
 Create the base map layer that displays the listed counties. Each county can be selected and is interactive.
@@ -157,7 +163,7 @@ Validation: the user walks through each notebook feature, including backlinks, r
 Repository layout:
 ```
 client/               React + Vite + MapLibre app
-  public/data/        Processed GeoJSON per county and layer (committed)
+  public/data/        Processed GeoJSON per county and layer, plus boundaries/ and manifest.json (committed)
 server/               Express API: notes, markers, geocoding proxy
   data/               SQLite database and photo uploads (gitignored)
 shared/               County config, layer definitions, Zod schemas
@@ -166,7 +172,7 @@ data-pipeline/        Download and processing scripts
 Reference-MD-Files/   Docs from the earlier (artifact) version
 ```
 
-Environment variables live in `.env` (never committed) and are documented in `.env.example` (committed): `PORT`, `DATABASE_PATH`, `UPLOADS_DIR`, `VITE_API_URL`, `GEOCODER_USER_AGENT`.
+Environment variables live in `.env` at the repo root (never committed) and are documented in `.env.example` (committed): `CLIENT_PORT` and `CLIENT_HOST` (Vite dev server; set `CLIENT_HOST=0.0.0.0` to test on a phone over Wi-Fi), `PORT`, `DATABASE_PATH`, `UPLOADS_DIR`, `VITE_API_URL`, `GEOCODER_USER_AGENT`. The client's `vite.config.ts` sets `envDir` to the repo root.
 
 Development is on Windows, so npm scripts must be cross-platform: no bash-only syntax, and use `cross-env` and `path.join`.
 
@@ -189,11 +195,21 @@ npm run data:fetch -- --county lyon  # download raw source data for one county (
 npm run data:build -- --county lyon  # process raw data into client/public/data (county boundaries are always rebuilt)
 ```
 
-Pin TypeScript to 6.0.x until typescript-eslint supports TypeScript 7.
+## Implementation Notes
+Decisions and pitfalls from earlier phases. Check these before changing the related code.
+
+- **Versions:** TypeScript is pinned to 6.0.x because typescript-eslint doesn't support TypeScript 7 yet. Other packages are on current majors: Vite 8, React 19, MapLibre 6, Zustand 5, Vitest 5, ESLint 10.
+- **Workspace packages** are named `@hunt/shared`, `@hunt/client`, and `@hunt/data-pipeline`. `@hunt/shared` exports its TypeScript source directly (`exports: ./src/index.ts`) and has no build step. Vite and tsx compile it on the fly. The Phase 2 server must also run it through tsx or bundle it, because plain `node` can't load it.
+- **MapLibre worker:** MapLibre 6 builds its worker URL at runtime, so Vite doesn't serve or bundle the worker. `client/src/map/MapView.tsx` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?url` and calls `setWorkerUrl()`. Without that, vector tiles (the Streets basemap) and every GeoJSON layer stay blank, while the raster basemaps still draw.
+- **Map overlay:** everything drawn on top of the basemap is defined in `client/src/map/overlay.ts`, with ids prefixed `hunt-`. A `transformStyle` hook re-adds it on every `setStyle`, so switching basemaps keeps it. State changes (selection, theme, label size) go through `applyOverlayState()`. Hover uses feature-state (`promoteId: 'id'`). Add new layers the same way.
+- **Map clicks:** with a county isolated, any click outside it, including on another county, returns to the full view.
+- **State:** `client/src/state/store.ts` (Zustand). Only display settings (basemap, theme, label size) are saved, in localStorage under `hunt-map-settings`. Selection is not saved.
+- **Tests:** the root `vitest.config.ts` defines a project per workspace, and client tests run in jsdom. MapLibre can't run in jsdom, so test the pure style builders in `overlay.ts`, the store, and the components. Check the map itself in a browser (see the phase workflow).
+- **Shell quirk:** heredocs in the Bash tool can collapse `\\` to `\`. Write files that contain backslashes, such as regexes, with the Write or Edit tool.
 
 ## Known Gaps from the Earlier Version
 Address these where practical, but don't hold up a phase for them.
-- No satellite basemap: fixed by the USGS Imagery basemap (Phase 1).
+- No satellite basemap: fixed by the USGS Imagery basemap (done in Phase 1).
 - Parcels reflect 2018 ownership: use Washoe's current parcel service, and look for current services in the other counties.
 - The Lincoln Highway layer is partial.
 - Building outlines are missing: Microsoft's US building footprints are a possible future layer.
