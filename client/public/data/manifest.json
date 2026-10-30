@@ -1,0 +1,42 @@
+{
+  "buildDate": "2026-10-30T03:59:43.973Z",
+  "bbox": [
+    -120.00645,
+    37.8937,
+    -117.29991,
+    41.99764
+  ],
+  "sources": {
+    "censusCounties": {
+      "name": "US Census Bureau Cartographic Boundary Files, counties (1:500,000)",
+      "url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
+      "vintage": "2025"
+    }
+  },
+  "counties": {
+    "carson-city": {
+      "layers": {}
+    },
+    "churchill": {
+      "layers": {}
+    },
+    "douglas": {
+      "layers": {}
+    },
+    "lyon": {
+      "layers": {}
+    },
+    "mineral": {
+      "layers": {}
+    },
+    "pershing": {
+      "layers": {}
+    },
+    "storey": {
+      "layers": {}
+    },
+    "washoe": {
+      "layers": {}
+    }
+  }
+}

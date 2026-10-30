@@ -175,18 +175,21 @@ Each phase creates the scripts it needs. Keep this list current.
 
 ```
 npm install                          # install all workspaces
-npm run dev                          # client (Vite) + server together
+npm run dev                          # client (Vite) + server together (client only until Phase 2)
 npm run dev:client                   # client only
-npm run dev:server                   # server only
+npm run dev:server                   # server only (Phase 2)
 npm run build                        # production build of client and server
 npm run check                        # typecheck + lint + test + build; run before every phase validation
 npm run typecheck
-npm run lint
-npm run test
-npm run db:migrate                   # apply Drizzle migrations to the SQLite database
-npm run data:fetch -- --county lyon  # download raw source data for one county (or --all)
-npm run data:build -- --county lyon  # process raw data into client/public/data
+npm run lint                         # ESLint + Prettier check
+npm run format                       # Prettier write
+npm run test                         # Vitest, all workspaces (test:watch for watch mode)
+npm run db:migrate                   # apply Drizzle migrations to the SQLite database (Phase 2)
+npm run data:fetch -- --county lyon  # download raw source data for one county (or --all); cached, --force re-downloads
+npm run data:build -- --county lyon  # process raw data into client/public/data (county boundaries are always rebuilt)
 ```
+
+Pin TypeScript to 6.0.x until typescript-eslint supports TypeScript 7.
 
 ## Known Gaps from the Earlier Version
 Address these where practical, but don't hold up a phase for them.

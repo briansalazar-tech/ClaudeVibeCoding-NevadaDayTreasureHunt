@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+data-pipeline/raw/
+client/public/data/
+package-lock.json
+*.MD
+CLAUDE.md
