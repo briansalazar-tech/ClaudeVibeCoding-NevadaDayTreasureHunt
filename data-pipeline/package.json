@@ -1,0 +1,23 @@
+{
+  "name": "@hunt/data-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hunt/shared": "*",
+    "@turf/bbox": "^7.4.0",
+    "@turf/helpers": "^7.4.0",
+    "@turf/mask": "^7.4.0",
+    "@turf/union": "^7.4.0",
+    "fflate": "^0.8.3",
+    "polylabel": "^2.1.0",
+    "shapefile": "^0.6.6"
+  },
+  "devDependencies": {
+    "@types/polylabel": "^2.0.0",
+    "@types/shapefile": "^0.6.4"
+  }
+}
