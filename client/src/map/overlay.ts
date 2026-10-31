@@ -1,4 +1,5 @@
-import type { CountyId } from '@hunt/shared';
+import type { CountyId, DataLayerId } from '@hunt/shared';
+import type { FeatureCollection } from 'geojson';
 import type {
   ExpressionSpecification,
   LayerSpecification,
@@ -9,6 +10,15 @@ import type {
 import type { BoundaryData } from '../data';
 import type { LabelSize, Theme } from '../state/store';
 import { GLYPHS_URL, LABEL_FONT } from './basemaps';
+import {
+  LABEL_SCALE,
+  dataLayersAbove,
+  dataLayersBelow,
+  dataSources,
+  type DataLayerState,
+} from './dataLayers';
+
+export { LABEL_SCALE };
 
 /** Everything we draw on top of the basemap is prefixed so a basemap swap can keep it. */
 const PREFIX = 'hunt-';
@@ -28,13 +38,20 @@ export const LAYERS = {
   label: 'hunt-county-label',
 } as const;
 
-export interface OverlayState {
+export interface CountyOverlayState {
   theme: Theme;
   labelSize: LabelSize;
   selectedCountyId: CountyId | null;
 }
 
-export const LABEL_SCALE: Record<LabelSize, number> = { S: 0.8, M: 1, L: 1.25, XL: 1.5 };
+export type OverlayState = CountyOverlayState & DataLayerState;
+
+/** What the overlay draws: the county boundaries, the loaded layer data and the custom markers. */
+export interface OverlayData {
+  boundary: BoundaryData;
+  layers: Partial<Record<DataLayerId, FeatureCollection>>;
+  markers: FeatureCollection;
+}
 
 const PALETTE = {
   light: {
@@ -74,11 +91,12 @@ export function overlaySources(data: BoundaryData): Record<string, SourceSpecifi
   };
 }
 
+/** The county layers: the dimmed outside, county fills and outlines, and county labels (last). */
 export function overlayLayers({
   theme,
   labelSize,
   selectedCountyId: sel,
-}: OverlayState): LayerSpecification[] {
+}: CountyOverlayState): LayerSpecification[] {
   const c = PALETTE[theme];
   const isSelected: ExpressionSpecification = ['==', ['get', 'id'], sel ?? ''];
   const hovered: ExpressionSpecification = ['boolean', ['feature-state', 'hover'], false];
@@ -155,17 +173,32 @@ export function overlayLayers({
   ];
 }
 
+/**
+ * Every overlay layer in drawing order: data fills and lines under the county outlines, then
+ * the outlines, then points, labels and custom markers, with the county labels on top.
+ */
+export function allOverlayLayers(state: OverlayState): LayerSpecification[] {
+  const county = overlayLayers(state);
+  const label = county.filter((l) => l.id === LAYERS.label);
+  const outlines = county.filter((l) => l.id !== LAYERS.label);
+  return [...dataLayersBelow(state), ...outlines, ...dataLayersAbove(state), ...label];
+}
+
 /** Adds our sources and layers to a basemap style. Used as MapLibre's transformStyle. */
 export function withOverlay(
   style: StyleSpecification,
-  data: BoundaryData,
+  data: OverlayData,
   state: OverlayState,
 ): StyleSpecification {
   return {
     ...style,
     glyphs: style.glyphs ?? GLYPHS_URL,
-    sources: { ...style.sources, ...overlaySources(data) },
-    layers: [...style.layers.filter((l) => !l.id.startsWith(PREFIX)), ...overlayLayers(state)],
+    sources: {
+      ...style.sources,
+      ...overlaySources(data.boundary),
+      ...dataSources(data.layers, data.markers),
+    },
+    layers: [...style.layers.filter((l) => !l.id.startsWith(PREFIX)), ...allOverlayLayers(state)],
   };
 }
 
@@ -173,9 +206,9 @@ type PaintKey = Parameters<MapLibreMap['setPaintProperty']>[1];
 type PaintValue = Parameters<MapLibreMap['setPaintProperty']>[2];
 type LayoutKey = Parameters<MapLibreMap['setLayoutProperty']>[1];
 
-/** Pushes new overlay state (selection, theme, label size) into an already-loaded style. */
+/** Pushes new overlay state (selection, theme, label size, layer toggles) into a loaded style. */
 export function applyOverlayState(map: MapLibreMap, state: OverlayState): void {
-  for (const layer of overlayLayers(state)) {
+  for (const layer of allOverlayLayers(state)) {
     if (!map.getLayer(layer.id)) continue;
     for (const [key, value] of Object.entries(layer.paint ?? {})) {
       map.setPaintProperty(layer.id, key as PaintKey, value as PaintValue);

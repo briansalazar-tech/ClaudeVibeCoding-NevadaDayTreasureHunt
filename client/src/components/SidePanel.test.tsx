@@ -1,4 +1,5 @@
 import { COUNTIES, type CountyCollection, type Manifest } from '@hunt/shared';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -22,13 +23,22 @@ const manifest: Manifest = {
 };
 
 function renderPanel() {
-  render(<SidePanel data={{ counties, manifest }} />);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SidePanel data={{ counties, manifest }} />
+    </QueryClientProvider>,
+  );
   return userEvent.setup();
 }
 
 describe('SidePanel', () => {
   beforeEach(() => {
-    useHuntStore.setState({ selectedCountyId: null, hoveredCountyId: null, sheetOpen: true });
+    useHuntStore.setState({
+      selectedCountyId: null,
+      hoveredCountyId: null,
+      sheetOpen: true,
+      panelTab: 'county',
+    });
   });
 
   it('lists all eight counties in the full view', () => {
@@ -72,8 +82,26 @@ describe('SidePanel', () => {
 
   it('changes display settings', async () => {
     const user = renderPanel();
+    await user.click(screen.getByRole('tab', { name: 'Display' }));
     await user.click(screen.getByRole('radio', { name: 'XL' }));
     await user.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(useHuntStore.getState()).toMatchObject({ labelSize: 'XL', theme: 'dark' });
+  });
+
+  it('toggles layers from the Layers tab', async () => {
+    const user = renderPanel();
+    await user.click(screen.getByRole('tab', { name: 'Layers' }));
+    const parks = screen.getByRole('checkbox', { name: /^Parks/ });
+    expect(parks).toBeChecked();
+    await user.click(parks);
+    expect(useHuntStore.getState().layers.parks).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'All on' }));
+    expect(Object.values(useHuntStore.getState().layers).every(Boolean)).toBe(true);
+  });
+
+  it('says so when a county has no layer data yet', async () => {
+    const user = renderPanel();
+    await user.click(screen.getByRole('button', { name: /^Mineral/ }));
+    expect(screen.getByText('No layer data has been built for this county yet.')).toBeVisible();
   });
 });

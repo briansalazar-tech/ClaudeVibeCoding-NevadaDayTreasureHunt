@@ -1,0 +1,52 @@
+[
+  {
+    "id": "wikipedia:Fort_Churchill_State_Historic_Park,_Nevada",
+    "name": "Fort Churchill",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/Fort_Churchill_State_Historic_Park,_Nevada"
+  },
+  {
+    "id": "srhp:250164",
+    "name": "Amity Lodge No. 4, Free and Accepted Masons",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2025 · 175 Main St. · Silver City"
+  },
+  {
+    "id": "srhp:060144",
+    "name": "Caples House",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2006 · 175 Silver St. · Dayton"
+  },
+  {
+    "id": "srhp:900094",
+    "name": "Chinese Residence",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1994 · 65 East Silver St. · Dayton"
+  },
+  {
+    "id": "nrhp:80002468",
+    "name": "East Walker River Petroglyph Site",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/East_Walker_River_Petroglyph_Site",
+    "detail": "National Register 1980 · State Register · Address Restricted"
+  },
+  {
+    "id": "srhp:140151",
+    "name": "Nordyke Ranch House",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2014 · 727 State Route 339 · Yerington"
+  },
+  {
+    "id": "srhp:940098",
+    "name": "Stockton Well Station",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register · Spruce Ave. · Silver Springs"
+  }
+]
