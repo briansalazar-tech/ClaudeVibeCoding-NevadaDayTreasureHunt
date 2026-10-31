@@ -37,13 +37,19 @@ describe('hunt store', () => {
     });
   });
 
-  it('persists only display settings', () => {
+  it('persists display settings and layer toggles, not the selection', () => {
     useHuntStore.getState().setBasemap('imagery');
     useHuntStore.getState().selectCounty('storey');
     const saved = JSON.parse(localStorage.getItem('hunt-map-settings') ?? '{}') as {
       state: Record<string, unknown>;
     };
-    expect(Object.keys(saved.state).sort()).toEqual(['basemap', 'labelSize', 'theme']);
+    expect(Object.keys(saved.state).sort()).toEqual([
+      'basemap',
+      'labelSize',
+      'layers',
+      'streetLabels',
+      'theme',
+    ]);
     expect(saved.state.basemap).toBe('imagery');
   });
 });

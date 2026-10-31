@@ -1,5 +1,6 @@
-import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, Geometry, MultiPolygon, Point, Polygon } from 'geojson';
 import type { CountyId } from './counties.js';
+import type { DataLayerId, PlaceProperties, UnlocatedPlace } from './layers.js';
 
 /** Paths under client/public/data/ (the pipeline writes them, the client fetches them). */
 export const DATA_FILES = {
@@ -8,6 +9,16 @@ export const DATA_FILES = {
   countyLabels: 'boundaries/county-labels.geojson',
   outsideMask: 'boundaries/outside-mask.geojson',
 } as const;
+
+/** `<county>/<layer>.geojson`: one county's features for one layer. */
+export function layerFile(county: CountyId, layer: DataLayerId): string {
+  return `${county}/${layer}.geojson`;
+}
+
+/** `<county>/unlocated.json`: places with no confirmed location ("Not on the map"). */
+export function unlocatedFile(county: CountyId): string {
+  return `${county}/unlocated.json`;
+}
 
 export type BBox = [west: number, south: number, east: number, north: number];
 
@@ -31,5 +42,17 @@ export interface Manifest {
   /** Bounding box of all hunt counties together. */
   bbox: BBox;
   sources: Record<string, { name: string; url: string; vintage?: string }>;
-  counties: Record<string, { layers: Record<string, { count: number }> }>;
+  counties: Record<string, CountyManifest>;
 }
+
+export interface CountyManifest {
+  /** Feature count per layer file; a layer with no entry has no file for this county. */
+  layers: Partial<Record<DataLayerId, { count: number; bytes?: number }>>;
+  /** Number of entries in unlocated.json. */
+  unlocated?: number;
+  buildDate?: string;
+}
+
+export type PlaceFeature = Feature<Geometry, PlaceProperties>;
+export type PlaceCollection = FeatureCollection<Geometry, PlaceProperties>;
+export type UnlocatedList = UnlocatedPlace[];

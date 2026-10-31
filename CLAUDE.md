@@ -95,12 +95,17 @@ Scripts in `data-pipeline/` download and process the map data ahead of time; the
 - Raw downloads go in `data-pipeline/raw/` (gitignored). Processed output goes in `client/public/data/<county>/<layer>.geojson` (committed), along with a `manifest.json` that records per-layer feature counts and the build date.
 - County boundaries are built once for all counties together into `client/public/data/boundaries/`: `counties.geojson`, `county-labels.geojson` (one label point per county), and `outside-mask.geojson` (the dimmed area). Source: Census Cartographic Boundary counties, 2025 vintage, 1:500,000 (`cb_2025_us_county_500k.zip`).
 - Pipeline layout: `src/sources.ts` lists every source URL; each dataset is a step in `src/steps/` with a fetch function and a build function, and `src/fetch.ts` and `src/build.ts` run the steps. Keep the processing in pure functions that take parsed input and return GeoJSON, so they can be unit-tested with small fixtures. `downloadToRaw()` caches downloads. The manifest writer keeps the counts already recorded for counties that aren't in the current run.
-- The data file paths and their types (`DATA_FILES`, `CountyProperties`, `Manifest`) live in `shared/src/data-files.ts`, so the pipeline and the client agree on them.
-- Some sources need a manual download (the HMdb county CSVs, the SHPO PDFs, and possibly BLM SMA). When a script needs one of these, stop and ask the user to save it to `data-pipeline/raw/`, giving the exact URL and file name.
-- Go easy on public APIs: run Overpass queries one at a time, cache the responses in `raw/`, and don't re-download on every run.
+- The data file paths and their types (`DATA_FILES`, `layerFile()`, `Manifest`, `PlaceProperties`) live in `shared/src/data-files.ts` and `shared/src/layers.ts`, so the pipeline and the client agree on them. Each county also gets `unlocated.json` (the "Not on the map" list).
+- Steps in `data-pipeline/src/steps/`: `osm` (five Overpass queries per county: roads, places, trails, history, nature), `gnis`, `nps-trails`, `land` (BLM SMA plus public-owner parcels), `county-parks`, `markers` (SHPO plus HMdb), `register`, `ghost-towns`. `src/build-county.ts` merges them per county (dedupe, clip, representative points) as a pure function.
+- Only the HMdb county CSVs need a manual download (the county results page, "Download" button; save as `data-pipeline/raw/hmdb/<county>.csv`). `data:fetch` prints the exact URL for each missing one, and `data:build` warns and builds without them. State markers are matched to HMdb by the CSV's "Marker No." within 2 km (other series such as Trails West and the Forest Service reuse small numbers), then by title and distance. Everything else downloads by script:
+  - SHPO state markers come from the JSON feed behind shpo.nv.gov's marker map (`/historical-markers-json`), with coordinates, numbers and page slugs. The marker booklet PDF isn't needed.
+  - The State Register list is a SHPO PDF parsed with unpdf (text positions; the page is landscape). NRHP coordinates come from the Wikipedia county NRHP lists.
+  - BLM SMA is one statewide polygon per agency from the BLM Nevada FeatureServer, cached in `raw/blm-sma/` and clipped per county part by part.
+  - Parcels: Lyon uses its own current assessor service (`PARCEL_SOURCES` in `sources.ts`). Counties without one fall back to the 2018 NDOT statewide service, which was down ("Could not access any server machines") in Oct 2026; check it before Phase 3. Owner attributes download first and public owners are picked locally, then only their geometry is fetched.
+- Go easy on public APIs: run Overpass queries one at a time, cache the responses in `raw/`, and don't re-download on every run. The public Overpass server is often at capacity (429/504); the fetch backs off for minutes and retries. Never ask Overpass for `out geom` on non-multipolygon relations in the history and nature queries: route relations that cross the continent (historic trails) make the query time out.
 - Deduplicate GNIS features against OSM by name and distance. The earlier build skipped about 1,050 duplicates.
 - BLM SMA labels county and city land as "Private". Overlay the public-owner parcel layer so county and city land shows as public.
-- The parcels reflect 2018 ownership. Washoe County has a current parcel service with owner data that can replace them for Washoe.
+- The statewide parcels reflect 2018 ownership. Lyon's current assessor service replaces them for Lyon; Washoe County has a current parcel service with owner data that can replace them for Washoe (add it to `PARCEL_SOURCES`).
 - Never guess coordinates. Places without a confirmed location go in a "Not on the map" list in the county panel. Thirteen archaeological register sites are confidential by design; don't try to locate them.
 - Heavy layers (streets, land ownership, parcels) load per county and only above a minimum zoom. If a processed file exceeds about 10 MB, simplify it with mapshaper or switch that layer to PMTiles (tippecanoe needs WSL or Docker on Windows).
 
@@ -120,7 +125,7 @@ Phase workflow:
 5. Give the user a validation checklist with steps to follow in the running app. **Stop and wait.** Don't merge to `main` or begin the next phase until the user confirms the phase is valid.
 6. After the user confirms, commit, merge the branch into `main` with `--no-ff`, push to GitHub (`origin`), and push the phase branch too.
 
-**Status:** Phase 1 is complete (merged to `main` on 2026-10-29). Next is Phase 2.
+**Status:** Phase 1 is complete (merged to `main` on 2026-10-29). Phase 2 is complete (merged to `main` on 2026-10-31). Next is Phase 3.
 
 ### Phase 1: Base Map
 Create the base map layer that displays the listed counties. Each county can be selected and is interactive.
@@ -172,7 +177,7 @@ data-pipeline/        Download and processing scripts
 Reference-MD-Files/   Docs from the earlier (artifact) version
 ```
 
-Environment variables live in `.env` at the repo root (never committed) and are documented in `.env.example` (committed): `CLIENT_PORT` and `CLIENT_HOST` (Vite dev server; set `CLIENT_HOST=0.0.0.0` to test on a phone over Wi-Fi), `PORT`, `DATABASE_PATH`, `UPLOADS_DIR`, `VITE_API_URL`, `GEOCODER_USER_AGENT`. The client's `vite.config.ts` sets `envDir` to the repo root.
+Environment variables live in `.env` at the repo root (never committed) and are documented in `.env.example` (committed): `CLIENT_PORT` and `CLIENT_HOST` (Vite dev server; set `CLIENT_HOST=0.0.0.0` to test on a phone over Wi-Fi), `PORT` and `HOST` (API server), `DATABASE_PATH`, `UPLOADS_DIR` (paths relative to the repo root), `VITE_API_URL`, `GEOCODER_USER_AGENT` (also sent by the data pipeline to Overpass and Wikipedia). The client's `vite.config.ts` sets `envDir` to the repo root. The client calls `/api` on its own origin and the Vite dev and preview servers forward it to `PORT`, so leave `VITE_API_URL` empty unless the API is hosted elsewhere.
 
 Development is on Windows, so npm scripts must be cross-platform: no bash-only syntax, and use `cross-env` and `path.join`.
 
@@ -181,16 +186,18 @@ Each phase creates the scripts it needs. Keep this list current.
 
 ```
 npm install                          # install all workspaces
-npm run dev                          # client (Vite) + server together (client only until Phase 2)
+npm run dev                          # client (Vite) + API server together
 npm run dev:client                   # client only
-npm run dev:server                   # server only (Phase 2)
+npm run dev:server                   # API server only (tsx watch)
 npm run build                        # production build of client and server
+npm run start                        # production: the bundled server serves the API and client/dist
 npm run check                        # typecheck + lint + test + build; run before every phase validation
 npm run typecheck
 npm run lint                         # ESLint + Prettier check
 npm run format                       # Prettier write
 npm run test                         # Vitest, all workspaces (test:watch for watch mode)
-npm run db:migrate                   # apply Drizzle migrations to the SQLite database (Phase 2)
+npm run db:migrate                   # apply Drizzle migrations (the server also applies them on startup)
+npm run db:generate -w server        # generate a migration after changing server/src/db/schema.ts
 npm run data:fetch -- --county lyon  # download raw source data for one county (or --all); cached, --force re-downloads
 npm run data:build -- --county lyon  # process raw data into client/public/data (county boundaries are always rebuilt)
 ```
@@ -199,13 +206,18 @@ npm run data:build -- --county lyon  # process raw data into client/public/data 
 Decisions and pitfalls from earlier phases. Check these before changing the related code.
 
 - **Versions:** TypeScript is pinned to 6.0.x because typescript-eslint doesn't support TypeScript 7 yet. Other packages are on current majors: Vite 8, React 19, MapLibre 6, Zustand 5, Vitest 5, ESLint 10.
-- **Workspace packages** are named `@hunt/shared`, `@hunt/client`, and `@hunt/data-pipeline`. `@hunt/shared` exports its TypeScript source directly (`exports: ./src/index.ts`) and has no build step. Vite and tsx compile it on the fly. The Phase 2 server must also run it through tsx or bundle it, because plain `node` can't load it.
+- **Workspace packages** are named `@hunt/shared`, `@hunt/client`, `@hunt/server`, and `@hunt/data-pipeline`. `@hunt/shared` exports its TypeScript source directly (`exports: ./src/index.ts`) and has no build step. Vite and tsx compile it on the fly; the server runs under `tsx watch` in development and `server/build.mjs` bundles it with esbuild for production (shared bundled in, npm dependencies external).
+- **Server:** Express 5 with better-sqlite3 and Drizzle (`server/src/db/schema.ts`, migrations committed in `server/drizzle/`). `createApp(db)` in `server/src/app.ts` takes the database, so tests use an in-memory one with Supertest. Request bodies are parsed with the Zod schemas in `shared/src/markers.ts`; `errors.ts` turns Zod errors into 400s. With `NODE_ENV=production` the server also serves `client/dist`.
 - **MapLibre worker:** MapLibre 6 builds its worker URL at runtime, so Vite doesn't serve or bundle the worker. `client/src/map/MapView.tsx` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?url` and calls `setWorkerUrl()`. Without that, vector tiles (the Streets basemap) and every GeoJSON layer stay blank, while the raster basemaps still draw.
-- **Map overlay:** everything drawn on top of the basemap is defined in `client/src/map/overlay.ts`, with ids prefixed `hunt-`. A `transformStyle` hook re-adds it on every `setStyle`, so switching basemaps keeps it. State changes (selection, theme, label size) go through `applyOverlayState()`. Hover uses feature-state (`promoteId: 'id'`). Add new layers the same way.
+- **Map overlay:** everything drawn on top of the basemap is defined in `client/src/map/overlay.ts` (counties) and `client/src/map/dataLayers.ts` (data layers and custom markers), with ids prefixed `hunt-`. A `transformStyle` hook re-adds it on every `setStyle`, so switching basemaps keeps it; `MapView` tracks which features each source holds and re-sends data that arrived while a style was loading. State changes (selection, theme, label size, layer toggles) go through `applyOverlayState()`. Hover uses feature-state (`promoteId: 'id'`). Add new layers the same way.
+- **Map icons** are drawn on a canvas by `client/src/map/icons.ts` through `map.setMissingStyleImageResolver()`; the icon id encodes shape, color and size. (The older `styleimagemissing` event still draws them, but MapLibre 6 logs a warning for every icon.)
+- **Layer data:** `client/src/layerData.ts` decides which `<county>/<layer>.geojson` files to load (TanStack Query, cached for the session). Light layers load when on; heavy layers (streets, land) load for the selected county or once zoomed in to their `minzoom` over a county. A selected county loads all its layers for the place list. Popups look up the land owner from the county's land layer.
 - **Map clicks:** with a county isolated, any click outside it, including on another county, returns to the full view.
-- **State:** `client/src/state/store.ts` (Zustand). Only display settings (basemap, theme, label size) are saved, in localStorage under `hunt-map-settings`. Selection is not saved.
+- **State:** `client/src/state/store.ts` (Zustand). Display settings (basemap, theme, label size) and layer toggles are saved in localStorage under `hunt-map-settings`; new layers default to on (land ownership defaults to off). Selection is not saved. Server data (custom markers) goes through TanStack Query hooks in `client/src/api.ts`.
+- **Keyboard:** Esc closes an open popup first, then cancels marker placement, then returns to all counties.
 - **Tests:** the root `vitest.config.ts` defines a project per workspace, and client tests run in jsdom. MapLibre can't run in jsdom, so test the pure style builders in `overlay.ts`, the store, and the components. Check the map itself in a browser (see the phase workflow).
-- **Shell quirk:** heredocs in the Bash tool can collapse `\\` to `\`. Write files that contain backslashes, such as regexes, with the Write or Edit tool.
+- **Shell quirk:** heredocs in the Bash tool can collapse `\\` to `\`, and can break on quote-heavy text such as CSS. Write files that contain backslashes, such as regexes, with the Write or Edit tool.
+- **Dev servers on Windows:** stopping an `npm run dev` background task can leave its Vite child running, so the next start moves to 5174, 5175, and so on. Read the port from the Vite output instead of assuming 5173.
 
 ## Known Gaps from the Earlier Version
 Address these where practical, but don't hold up a phase for them.

@@ -1,5 +1,5 @@
 {
-  "buildDate": "2026-10-30T03:59:43.973Z",
+  "buildDate": "2026-10-31T16:13:07.109Z",
   "bbox": [
     -120.00645,
     37.8937,
@@ -11,6 +11,59 @@
       "name": "US Census Bureau Cartographic Boundary Files, counties (1:500,000)",
       "url": "https://www2.census.gov/geo/tiger/GENZ2025/shp/cb_2025_us_county_500k.zip",
       "vintage": "2025"
+    },
+    "osm": {
+      "name": "OpenStreetMap contributors (ODbL), via the Overpass API",
+      "url": "https://overpass-api.de/api/interpreter"
+    },
+    "gnis": {
+      "name": "USGS GNIS Domestic Names, Nevada",
+      "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_NV_Text.zip"
+    },
+    "californiaTrail": {
+      "name": "NPS California National Historic Trail (CALI_NHT)",
+      "url": "https://services1.arcgis.com/fBc8EJBxQRMcHlei/arcgis/rest/services/CALI_NHT/FeatureServer/0"
+    },
+    "ponyExpress": {
+      "name": "NPS Pony Express National Historic Trail (POEX_NHT)",
+      "url": "https://services1.arcgis.com/fBc8EJBxQRMcHlei/arcgis/rest/services/POEX_NHT/FeatureServer/0"
+    },
+    "blmSma": {
+      "name": "BLM Nevada Surface Management Agency (SMA)",
+      "url": "https://gis.blm.gov/nvarcgis/rest/services/BLM_Nevada_Surface_Management_Agency/BLM_Nevada_Surface_Management_Agency/FeatureServer/0"
+    },
+    "shpoMarkers": {
+      "name": "Nevada SHPO State Historical Markers",
+      "url": "https://shpo.nv.gov/historical-markers-json?keywords=&city=&county="
+    },
+    "shpoStateRegister": {
+      "name": "Nevada SHPO State Register of Historic Places, listed properties",
+      "url": "https://shpo.nv.gov/uploads/documents/Nevada_State_Register_of_Historic_Places_-_Listed_Properties_Current.pdf"
+    },
+    "hmdb": {
+      "name": "Historical Marker Database (HMdb.org), county CSV downloads",
+      "url": "https://www.hmdb.org/"
+    },
+    "wikipediaNrhp": {
+      "name": "Wikipedia, National Register of Historic Places county lists (coordinates)",
+      "url": "https://en.wikipedia.org/w/api.php"
+    },
+    "wikipediaGhostTowns": {
+      "name": "Wikipedia, List of ghost towns in Nevada, and the town articles (coordinates)",
+      "url": "https://en.wikipedia.org/wiki/List_of_ghost_towns_in_Nevada"
+    },
+    "pastFinds": {
+      "name": "Past medallion finds, entered by hand",
+      "url": "shared/src/past-finds.ts"
+    },
+    "parcels-lyon": {
+      "name": "Lyon County Assessor parcels (current)",
+      "url": "https://gis.lyon-county.org/server/rest/services/Landbase/Parcels/MapServer/1",
+      "vintage": "current"
+    },
+    "county-parks-lyon": {
+      "name": "Lyon County Assessor park parcels (land use 900)",
+      "url": "https://gis.lyon-county.org/server/rest/services/Landbase/Parks/MapServer/8"
     }
   },
   "counties": {
@@ -24,7 +77,62 @@
       "layers": {}
     },
     "lyon": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 8942,
+          "bytes": 6303140
+        },
+        "parks": {
+          "count": 133,
+          "bytes": 235892
+        },
+        "trails": {
+          "count": 27,
+          "bytes": 44019
+        },
+        "historic-trails": {
+          "count": 64,
+          "bytes": 66637
+        },
+        "towns": {
+          "count": 73,
+          "bytes": 17621
+        },
+        "nature": {
+          "count": 284,
+          "bytes": 191594
+        },
+        "state-markers": {
+          "count": 18,
+          "bytes": 7299
+        },
+        "markers": {
+          "count": 56,
+          "bytes": 19750
+        },
+        "register": {
+          "count": 9,
+          "bytes": 4010
+        },
+        "ghost-towns": {
+          "count": 3,
+          "bytes": 1060
+        },
+        "land": {
+          "count": 787,
+          "bytes": 1381540
+        },
+        "notable": {
+          "count": 216,
+          "bytes": 103944
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 7,
+      "buildDate": "2026-10-31T16:13:07.109Z"
     },
     "mineral": {
       "layers": {}
