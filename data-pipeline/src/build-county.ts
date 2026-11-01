@@ -17,6 +17,7 @@ import type { ClipArea } from './lib/clip.js';
 import { metersToGeometry } from './lib/geo.js';
 import { normalizeName } from './lib/names.js';
 import { finalizeDrafts, representativePoint, type LayerDraft } from './lib/place.js';
+import type { ParcelPark } from './sources.js';
 import { gnisDrafts, type GnisName } from './steps/gnis.js';
 
 type Area = Polygon | MultiPolygon;
@@ -36,6 +37,7 @@ export interface CountyInputs {
   sma: LayerDraft[];
   parcels: LayerDraft[];
   countyParks: LayerDraft[];
+  parcelParks: readonly ParcelPark[];
   markers: WithUnlocated;
   register: WithUnlocated;
   ghostTowns: WithUnlocated;
@@ -108,11 +110,37 @@ function pastFindDrafts(finds: readonly PastFind[], county: HuntCounty): LayerDr
     }));
 }
 
+/** Parks from PARCEL_PARKS: the named parcel's outline, moved to the Parks layer. */
+function parcelParkDrafts(
+  parks: readonly ParcelPark[],
+  county: HuntCounty,
+  parcels: readonly LayerDraft[],
+  notes: string[],
+): LayerDraft[] {
+  const drafts: LayerDraft[] = [];
+  for (const park of parks.filter((p) => p.county === county.id)) {
+    const parcel = parcels.find((d) => d.id === `parcel:${county.id}:${park.apn}`);
+    if (!parcel) {
+      notes.push(`! parks: no public parcel with APN ${park.apn} for ${park.name}`);
+      continue;
+    }
+    drafts.push({
+      ...parcel,
+      id: `parcel-park:${county.id}:${park.apn}`,
+      layer: 'parks',
+      kind: 'park',
+      name: park.name,
+      detail: [park.note, parcel.detail].filter(Boolean).join(' · '),
+    });
+  }
+  return drafts;
+}
+
 export function buildCountyLayers(input: CountyInputs): CountyLayers {
   const notes: string[] = [];
   const byLayer = (layer: DataLayerId) => input.osm.filter((d) => d.layer === layer);
 
-  // Parks: OSM, plus county-list parks OSM doesn't already cover.
+  // Parks: OSM, plus county-list and parcel parks OSM doesn't already cover.
   const osmParks = byLayer('parks');
   const countyParks = withoutDuplicates(input.countyParks, osmParks, 1000);
   if (input.countyParks.length) {
@@ -120,6 +148,11 @@ export function buildCountyLayers(input: CountyInputs): CountyLayers {
       `parks: ${countyParks.kept.length} of ${input.countyParks.length} county-list parks added (${countyParks.dropped} already in OSM)`,
     );
   }
+  const parcelParks = withoutDuplicates(
+    parcelParkDrafts(input.parcelParks, input.county, input.parcels, notes),
+    [...osmParks, ...countyParks.kept],
+    1000,
+  );
 
   // Nature: OSM, plus GNIS names OSM lacks.
   const osmNature = byLayer('nature');
@@ -130,7 +163,7 @@ export function buildCountyLayers(input: CountyInputs): CountyLayers {
 
   const drafts: Record<DataLayerId, LayerDraft[]> = {
     streets: byLayer('streets'),
-    parks: [...osmParks, ...countyParks.kept],
+    parks: [...osmParks, ...countyParks.kept, ...parcelParks.kept],
     trails: byLayer('trails'),
     'historic-trails': [...input.npsTrails, ...byLayer('historic-trails')],
     towns: byLayer('towns'),

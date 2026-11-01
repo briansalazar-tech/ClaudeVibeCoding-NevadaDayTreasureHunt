@@ -1,0 +1,24 @@
+[
+  {
+    "id": "srhp:040132",
+    "name": "Carson Hot Springs",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2004 · 1500 Hot Springs Road · Carson City"
+  },
+  {
+    "id": "srhp:150153",
+    "name": "Colcord, Gov. Roswell K., House 700 W. Telegraph St.",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2015 · Carson City"
+  },
+  {
+    "id": "nrhp:77001508",
+    "name": "Virginia and Truckee Railroad Shops",
+    "layer": "register",
+    "reason": "No coordinates in the Wikipedia NRHP list",
+    "wikipedia": "https://en.wikipedia.org/wiki/Virginia_and_Truckee_Railroad_Shops",
+    "detail": "National Register 1977 · Between Stewart and Plaza Streets"
+  }
+]

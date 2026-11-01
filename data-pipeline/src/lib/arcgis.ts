@@ -22,7 +22,8 @@ interface ArcgisPage {
 
 /**
  * Runs an ArcGIS REST layer query and returns every page as one GeoJSON collection.
- * Servers cap each response (often 2,000 features), so this pages with resultOffset.
+ * Servers cap each response (often 2,000 features, sometimes fewer than `pageSize`), so this
+ * pages with resultOffset, advancing by what each page actually returned.
  */
 export async function queryArcgisLayer(
   layerUrl: string,
@@ -36,7 +37,7 @@ export async function queryArcgisLayer(
   }: ArcgisQuery = {},
 ): Promise<FeatureCollection<Geometry | null, Record<string, unknown>>> {
   const features: Feature<Geometry | null, Record<string, unknown>>[] = [];
-  for (let offset = 0; ; offset += pageSize) {
+  for (let offset = 0; ;) {
     const params = new URLSearchParams({
       where,
       outFields: outFields.join(','),
@@ -63,6 +64,7 @@ export async function queryArcgisLayer(
     if (page.error) throw new Error(`${layerUrl}: ${page.error.message}`);
     const batch = page.features ?? [];
     features.push(...batch);
+    offset += batch.length;
     const more = page.exceededTransferLimit ?? page.properties?.exceededTransferLimit ?? false;
     if (!more || batch.length === 0) break;
     console.log(`    ${features.length} features so far`);

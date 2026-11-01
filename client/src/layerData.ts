@@ -3,8 +3,11 @@ import {
   DATA_LAYERS,
   layerFile,
   unlocatedFile,
+  unpackLayerFile,
+  type CountyFeature,
   type CountyId,
   type DataLayerId,
+  type LayerFileData,
   type Manifest,
   type PlaceCollection,
   type PlaceFeature,
@@ -24,7 +27,8 @@ async function getJson<T>(file: string): Promise<T> {
 function layerQuery(county: CountyId, layer: DataLayerId) {
   return {
     queryKey: ['layer', county, layer] as const,
-    queryFn: () => getJson<PlaceCollection>(layerFile(county, layer)),
+    queryFn: async (): Promise<PlaceCollection> =>
+      unpackLayerFile(await getJson<LayerFileData>(layerFile(county, layer)), county, layer),
     // Processed files only change with a rebuild, so keep them for the session.
     staleTime: Infinity,
     gcTime: Infinity,
@@ -37,6 +41,31 @@ function hasLayer(manifest: Manifest, county: CountyId, layer: DataLayerId): boo
 
 function overlaps(a: readonly number[], b: readonly number[]): boolean {
   return a[0]! <= b[2]! && a[2]! >= b[0]! && a[1]! <= b[3]! && a[3]! >= b[1]!;
+}
+
+/**
+ * Whether a county shows in the view: its outline has a vertex inside the view, or the view's
+ * center or a corner is inside the county. Bounding boxes alone overlap far too often here
+ * (around Reno, five counties' boxes cover the same view).
+ */
+export function countyInView(county: CountyFeature, bounds: readonly number[]): boolean {
+  if (!overlaps(bounds, county.properties.bbox)) return false;
+  const [w, s, e, n] = bounds as [number, number, number, number];
+  const probes: [number, number][] = [
+    [(w + e) / 2, (s + n) / 2],
+    [w, s],
+    [w, n],
+    [e, s],
+    [e, n],
+  ];
+  if (probes.some((p) => booleanPointInPolygon(p, county.geometry))) return true;
+  const polygons =
+    county.geometry.type === 'Polygon'
+      ? [county.geometry.coordinates]
+      : county.geometry.coordinates;
+  return polygons.some((rings) =>
+    rings[0]!.some(([x, y]) => x! >= w && x! <= e && y! >= s && y! <= n),
+  );
 }
 
 export interface LayerNeeds {
@@ -64,9 +93,7 @@ export function neededFiles(
       let need: boolean;
       if ('heavy' in layer) {
         const inView =
-          view !== null &&
-          view.zoom >= layer.heavy.minzoom &&
-          overlaps(view.bounds, c.properties.bbox);
+          view !== null && view.zoom >= layer.heavy.minzoom && countyInView(c, view.bounds);
         // The selected county's streets feed its place list even when the layer is off.
         need = (on && (selected || inView)) || (selected && layer.id === 'streets');
       } else {

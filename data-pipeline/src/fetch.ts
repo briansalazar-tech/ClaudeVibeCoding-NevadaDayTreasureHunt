@@ -1,11 +1,12 @@
 /**
  * Downloads raw source data into data-pipeline/raw/ (cached; pass --force to re-download).
  *   npm run data:fetch -- --county lyon   (or --all)
+ *   npm run data:fetch -- --all --skip osm   (leave out steps, comma-separated)
  */
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { getCounty } from '@hunt/shared';
-import { parseArgs } from './lib/args.js';
+import { parseArgs, type FetchStep } from './lib/args.js';
 import { readCountyAreas } from './lib/counties.js';
 import { hasRaw } from './lib/download.js';
 import { fetchBoundaries, buildBoundaries } from './steps/boundaries.js';
@@ -53,11 +54,12 @@ for (const id of args.counties) {
   const county = getCounty(id)!;
   const area = areas.get(id)!;
   console.log(`Fetching ${county.name}`);
-  await fetchOsm(id, area.feature.properties.bbox, { force });
-  await fetchParcels(id, county.name, { force });
-  await fetchCountyParks(id, { force });
-  await fetchRegister(id, county.name, { force });
-  await fetchGhostTowns(id, county.name, { force });
+  const run = (step: FetchStep) => !args.skip.includes(step);
+  if (run('osm')) await fetchOsm(id, area.feature.properties.bbox, { force });
+  if (run('parcels')) await fetchParcels(id, county.name, { force });
+  if (run('county-parks')) await fetchCountyParks(id, { force });
+  if (run('register')) await fetchRegister(id, county.name, { force });
+  if (run('ghost-towns')) await fetchGhostTowns(id, county.name, { force });
   if (!hasRaw(hmdbRawFile(id))) missingHmdb.push(hmdbInstructions(county.name, id));
 }
 

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "srhp:230162",
+    "name": "Cactus Theater",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2024 · 405 6th Street · Hawthorne"
+  },
+  {
+    "id": "srhp:260166",
+    "name": "Log Cabin",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2026 · 633 E Street · Hawthorne"
+  }
+]

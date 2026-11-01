@@ -1,5 +1,5 @@
 {
-  "buildDate": "2026-10-31T16:13:07.109Z",
+  "buildDate": "2026-11-01T01:26:40.185Z",
   "bbox": [
     -120.00645,
     37.8937,
@@ -64,67 +64,275 @@
     "county-parks-lyon": {
       "name": "Lyon County Assessor park parcels (land use 900)",
       "url": "https://gis.lyon-county.org/server/rest/services/Landbase/Parks/MapServer/8"
+    },
+    "parcels-carson-city": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-churchill": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-douglas": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-mineral": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-pershing": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-storey": {
+      "name": "Nevada statewide parcels, 2018-12-31 (NDOT / Nevada Division of State Lands)",
+      "url": "https://gis.dot.nv.gov/agsphs/rest/services/Reference/Statewide_Parcels/MapServer/0",
+      "vintage": "2018"
+    },
+    "parcels-washoe": {
+      "name": "Washoe County parcels (current)",
+      "url": "https://wcgisweb.washoecounty.us/arcgis/rest/services/OpenData/OpenData/FeatureServer/0",
+      "vintage": "current"
+    },
+    "county-parks-washoe": {
+      "name": "Washoe County Regional Parks and Open Spaces",
+      "url": "https://gisenterprise.washoecounty.gov/server/rest/services/ReferenceServices/Regional_Parks_and_Open_Spaces/FeatureServer/0"
+    },
+    "parcelParks": {
+      "name": "Parks known only by their parcel, entered by hand",
+      "url": "data-pipeline/src/sources.ts"
     }
   },
   "counties": {
     "carson-city": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 3621,
+          "bytes": 1340753
+        },
+        "parks": {
+          "count": 158,
+          "bytes": 60723
+        },
+        "trails": {
+          "count": 476,
+          "bytes": 263646
+        },
+        "historic-trails": {
+          "count": 192,
+          "bytes": 71686
+        },
+        "towns": {
+          "count": 5,
+          "bytes": 1052
+        },
+        "nature": {
+          "count": 146,
+          "bytes": 76723
+        },
+        "state-markers": {
+          "count": 26,
+          "bytes": 9061
+        },
+        "markers": {
+          "count": 35,
+          "bytes": 9567
+        },
+        "register": {
+          "count": 43,
+          "bytes": 13779
+        },
+        "ghost-towns": {
+          "count": 0,
+          "bytes": 42
+        },
+        "land": {
+          "count": 462,
+          "bytes": 305319
+        },
+        "notable": {
+          "count": 70,
+          "bytes": 19770
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 3,
+      "buildDate": "2026-11-01T01:25:51.500Z"
     },
     "churchill": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 5509,
+          "bytes": 3333454
+        },
+        "parks": {
+          "count": 90,
+          "bytes": 553405
+        },
+        "trails": {
+          "count": 84,
+          "bytes": 75101
+        },
+        "historic-trails": {
+          "count": 117,
+          "bytes": 66405
+        },
+        "towns": {
+          "count": 37,
+          "bytes": 6736
+        },
+        "nature": {
+          "count": 1135,
+          "bytes": 513144
+        },
+        "state-markers": {
+          "count": 17,
+          "bytes": 5753
+        },
+        "markers": {
+          "count": 31,
+          "bytes": 8324
+        },
+        "register": {
+          "count": 17,
+          "bytes": 5552
+        },
+        "ghost-towns": {
+          "count": 11,
+          "bytes": 3182
+        },
+        "land": {
+          "count": 1419,
+          "bytes": 1154828
+        },
+        "notable": {
+          "count": 237,
+          "bytes": 61516
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 12,
+      "buildDate": "2026-11-01T01:26:01.419Z"
     },
     "douglas": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 6327,
+          "bytes": 2962278
+        },
+        "parks": {
+          "count": 184,
+          "bytes": 82647
+        },
+        "trails": {
+          "count": 729,
+          "bytes": 550847
+        },
+        "historic-trails": {
+          "count": 43,
+          "bytes": 29030
+        },
+        "towns": {
+          "count": 44,
+          "bytes": 8937
+        },
+        "nature": {
+          "count": 395,
+          "bytes": 200332
+        },
+        "state-markers": {
+          "count": 18,
+          "bytes": 6097
+        },
+        "markers": {
+          "count": 95,
+          "bytes": 25416
+        },
+        "register": {
+          "count": 25,
+          "bytes": 8076
+        },
+        "ghost-towns": {
+          "count": 1,
+          "bytes": 342
+        },
+        "land": {
+          "count": 1298,
+          "bytes": 965498
+        },
+        "notable": {
+          "count": 50,
+          "bytes": 11298
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 9,
+      "buildDate": "2026-11-01T01:26:05.455Z"
     },
     "lyon": {
       "layers": {
         "streets": {
           "count": 8942,
-          "bytes": 6303140
+          "bytes": 4350101
         },
         "parks": {
           "count": 133,
-          "bytes": 235892
+          "bytes": 123604
         },
         "trails": {
           "count": 27,
-          "bytes": 44019
+          "bytes": 30334
         },
         "historic-trails": {
           "count": 64,
-          "bytes": 66637
+          "bytes": 45950
         },
         "towns": {
           "count": 73,
-          "bytes": 17621
+          "bytes": 13485
         },
         "nature": {
           "count": 284,
-          "bytes": 191594
+          "bytes": 160503
         },
         "state-markers": {
           "count": 18,
-          "bytes": 7299
+          "bytes": 6188
         },
         "markers": {
           "count": 56,
-          "bytes": 19750
+          "bytes": 16746
         },
         "register": {
           "count": 9,
-          "bytes": 4010
+          "bytes": 3079
         },
         "ghost-towns": {
           "count": 3,
-          "bytes": 1060
+          "bytes": 904
         },
         "land": {
           "count": 787,
-          "bytes": 1381540
+          "bytes": 709042
         },
         "notable": {
           "count": 216,
-          "bytes": 103944
+          "bytes": 65066
         },
         "past-finds": {
           "count": 0,
@@ -132,19 +340,239 @@
         }
       },
       "unlocated": 7,
-      "buildDate": "2026-10-31T16:13:07.109Z"
+      "buildDate": "2026-11-01T01:26:15.682Z"
     },
     "mineral": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 5705,
+          "bytes": 3723686
+        },
+        "parks": {
+          "count": 23,
+          "bytes": 33468
+        },
+        "trails": {
+          "count": 16,
+          "bytes": 16028
+        },
+        "historic-trails": {
+          "count": 0,
+          "bytes": 42
+        },
+        "towns": {
+          "count": 44,
+          "bytes": 8113
+        },
+        "nature": {
+          "count": 532,
+          "bytes": 192630
+        },
+        "state-markers": {
+          "count": 6,
+          "bytes": 2201
+        },
+        "markers": {
+          "count": 8,
+          "bytes": 2699
+        },
+        "register": {
+          "count": 4,
+          "bytes": 1354
+        },
+        "ghost-towns": {
+          "count": 6,
+          "bytes": 1803
+        },
+        "land": {
+          "count": 409,
+          "bytes": 443516
+        },
+        "notable": {
+          "count": 950,
+          "bytes": 277337
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 2,
+      "buildDate": "2026-11-01T01:26:19.179Z"
     },
     "pershing": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 4138,
+          "bytes": 2992418
+        },
+        "parks": {
+          "count": 36,
+          "bytes": 87493
+        },
+        "trails": {
+          "count": 25,
+          "bytes": 22044
+        },
+        "historic-trails": {
+          "count": 1,
+          "bytes": 25966
+        },
+        "towns": {
+          "count": 54,
+          "bytes": 14273
+        },
+        "nature": {
+          "count": 1225,
+          "bytes": 727540
+        },
+        "state-markers": {
+          "count": 6,
+          "bytes": 2045
+        },
+        "markers": {
+          "count": 19,
+          "bytes": 5681
+        },
+        "register": {
+          "count": 5,
+          "bytes": 1712
+        },
+        "ghost-towns": {
+          "count": 9,
+          "bytes": 2509
+        },
+        "land": {
+          "count": 1538,
+          "bytes": 1336336
+        },
+        "notable": {
+          "count": 359,
+          "bytes": 106153
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 5,
+      "buildDate": "2026-11-01T01:26:23.125Z"
     },
     "storey": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 1686,
+          "bytes": 933633
+        },
+        "parks": {
+          "count": 7,
+          "bytes": 3184
+        },
+        "trails": {
+          "count": 16,
+          "bytes": 12622
+        },
+        "historic-trails": {
+          "count": 1,
+          "bytes": 4128
+        },
+        "towns": {
+          "count": 11,
+          "bytes": 2402
+        },
+        "nature": {
+          "count": 91,
+          "bytes": 34757
+        },
+        "state-markers": {
+          "count": 11,
+          "bytes": 3789
+        },
+        "markers": {
+          "count": 92,
+          "bytes": 26846
+        },
+        "register": {
+          "count": 8,
+          "bytes": 2458
+        },
+        "ghost-towns": {
+          "count": 0,
+          "bytes": 42
+        },
+        "land": {
+          "count": 178,
+          "bytes": 159661
+        },
+        "notable": {
+          "count": 197,
+          "bytes": 54032
+        },
+        "past-finds": {
+          "count": 1,
+          "bytes": 351
+        }
+      },
+      "unlocated": 1,
+      "buildDate": "2026-11-01T01:26:26.541Z"
     },
     "washoe": {
-      "layers": {}
+      "layers": {
+        "streets": {
+          "count": 25715,
+          "bytes": 10427450
+        },
+        "parks": {
+          "count": 1569,
+          "bytes": 1001907
+        },
+        "trails": {
+          "count": 2129,
+          "bytes": 1290975
+        },
+        "historic-trails": {
+          "count": 3,
+          "bytes": 20874
+        },
+        "towns": {
+          "count": 154,
+          "bytes": 45194
+        },
+        "nature": {
+          "count": 3939,
+          "bytes": 2122717
+        },
+        "state-markers": {
+          "count": 42,
+          "bytes": 14434
+        },
+        "markers": {
+          "count": 79,
+          "bytes": 21976
+        },
+        "register": {
+          "count": 87,
+          "bytes": 27686
+        },
+        "ghost-towns": {
+          "count": 5,
+          "bytes": 1396
+        },
+        "land": {
+          "count": 6951,
+          "bytes": 5208015
+        },
+        "notable": {
+          "count": 482,
+          "bytes": 172993
+        },
+        "past-finds": {
+          "count": 0,
+          "bytes": 42
+        }
+      },
+      "unlocated": 23,
+      "buildDate": "2026-11-01T01:26:40.185Z"
     }
   }
 }

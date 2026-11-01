@@ -1,0 +1,93 @@
+[
+  {
+    "id": "wikipedia:Miriam,_Nevada",
+    "name": "Miriam",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/Miriam,_Nevada"
+  },
+  {
+    "id": "wikipedia:Ocala,_Nevada",
+    "name": "Ocala",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/Ocala,_Nevada"
+  },
+  {
+    "id": "wikipedia:Parran,_Nevada",
+    "name": "Parran",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/Parran,_Nevada",
+    "detail": "Established 1910"
+  },
+  {
+    "id": "wikipedia:Salt_Wells,_Nevada",
+    "name": "Salt Wells",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/Salt_Wells,_Nevada"
+  },
+  {
+    "id": "wikipedia:White_Plains,_Nevada",
+    "name": "White Plains",
+    "layer": "ghost-towns",
+    "reason": "No coordinates in its Wikipedia article",
+    "wikipedia": "https://en.wikipedia.org/wiki/White_Plains,_Nevada",
+    "detail": "Established 1879"
+  },
+  {
+    "id": "nrhp:78001718",
+    "name": "Cold Springs Pony Express Station Ruins",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Cold_Springs_Pony_Express_Station_Ruins",
+    "detail": "National Register 1978 · State Register · Address Restricted"
+  },
+  {
+    "id": "srhp:150156",
+    "name": "Fallon Theater",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2017 · 71 S. Maine St. · Fallon"
+  },
+  {
+    "id": "nrhp:97001383",
+    "name": "Fort Churchill and Sand Springs Toll Road",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Fort_Churchill_and_Sand_Springs_Toll_Road",
+    "detail": "National Register 1997 · Address Restricted"
+  },
+  {
+    "id": "nrhp:84002073",
+    "name": "Lovelock Cave",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Lovelock_Cave",
+    "detail": "National Register 1984 · Address Restricted"
+  },
+  {
+    "id": "srhp:990106",
+    "name": "Overland Hotel",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1999 · 125 E. Center St. · Fallon"
+  },
+  {
+    "id": "nrhp:80002465",
+    "name": "Sand Springs Station",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Sand_Springs_Station",
+    "detail": "National Register 1980 · State Register · Address Restricted"
+  },
+  {
+    "id": "nrhp:75001104",
+    "name": "Stillwater Marsh",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Stillwater_Marsh",
+    "detail": "National Register 1975 · Address Restricted"
+  }
+]
