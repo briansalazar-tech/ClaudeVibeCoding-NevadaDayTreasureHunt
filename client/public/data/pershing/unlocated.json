@@ -1,0 +1,40 @@
+[
+  {
+    "id": "nrhp:05000207",
+    "name": "Dave Canyon, Se'aquada, Table Mountain",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Dave_Canyon,_Se'aquada,_Table_Mountain",
+    "detail": "National Register 2005 · Address Restricted"
+  },
+  {
+    "id": "nrhp:66000457",
+    "name": "Leonard Rock Shelter",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Leonard_Rockshelter",
+    "detail": "National Register 1966 · National Historic Landmark · Address Restricted"
+  },
+  {
+    "id": "nrhp:78001726",
+    "name": "Rye Patch Archeological Sites",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "wikipedia": "https://en.wikipedia.org/wiki/Rye_Patch_Archeological_Sites",
+    "detail": "National Register 1978 · Address Restricted"
+  },
+  {
+    "id": "srhp:810045",
+    "name": "Rye Patch Archeological Sites",
+    "layer": "register",
+    "reason": "Location confidential (archaeological site)",
+    "detail": "State Register · Address Restricted · Lovelock"
+  },
+  {
+    "id": "srhp:920097",
+    "name": "Thunder Mountain Monument",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1992 · (not given) · Imlay"
+  }
+]

@@ -9,6 +9,7 @@ import {
   DATA_LAYERS,
   getCounty,
   layerFile,
+  packLayerFile,
   PAST_FINDS,
   unlocatedFile,
   type Manifest,
@@ -18,7 +19,7 @@ import { parseArgs } from './lib/args.js';
 import { readCountyAreas } from './lib/counties.js';
 import { readManifest, writeJson, writeManifest } from './lib/manifest.js';
 import { OUT_DIR } from './lib/paths.js';
-import { COUNTY_PARK_SOURCES, SOURCES } from './sources.js';
+import { COUNTY_PARK_SOURCES, PARCEL_PARKS, SOURCES } from './sources.js';
 import { buildBoundaries } from './steps/boundaries.js';
 import { readCountyParks } from './steps/county-parks.js';
 import { readGhostTowns } from './steps/ghost-towns.js';
@@ -59,6 +60,7 @@ if (args.counties.length) {
     'wikipediaNrhp',
     'wikipediaGhostTowns',
     'pastFinds',
+    'parcelParks',
   ] as const) {
     usedSources.add(key);
   }
@@ -75,6 +77,7 @@ if (args.counties.length) {
       sma,
       parcels: await readParcelDrafts(id, county.name),
       countyParks: await readCountyParks(id),
+      parcelParks: PARCEL_PARKS,
       // HMdb needs a manual download; build without it (with a warning) rather than not at all.
       markers: await readMarkers(id, county.name, { requireHmdb: false }),
       register: await readRegister(id, county.name),
@@ -87,7 +90,7 @@ if (args.counties.length) {
     const layers: Manifest['counties'][string]['layers'] = {};
     for (const { id: layer } of DATA_LAYERS) {
       const features = result.layers[layer];
-      const bytes = await writeJson(layerFile(id, layer), { type: 'FeatureCollection', features });
+      const bytes = await writeJson(layerFile(id, layer), packLayerFile(features));
       layers[layer] = { count: features.length, bytes };
       const size =
         bytes > 1024 * 1024

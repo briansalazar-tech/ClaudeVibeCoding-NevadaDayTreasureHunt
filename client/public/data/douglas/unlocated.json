@@ -1,0 +1,66 @@
+[
+  {
+    "id": "srhp:880088",
+    "name": "Bliss Boat House",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1988 · 1851 Glenbrook Rd · Glenbrook"
+  },
+  {
+    "id": "srhp:880092",
+    "name": "Brown, George, House",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1988 · 1452 Main Street · Gardnerville"
+  },
+  {
+    "id": "srhp:220161",
+    "name": "Copeland Lumber Building",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2022 · 1572 U.S. Hwy. 395 · Minden"
+  },
+  {
+    "id": "srhp:870087",
+    "name": "Dangberg House",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 1987 · 1600 6th St. · Minden"
+  },
+  {
+    "id": "srhp:010108",
+    "name": "Farmers Bank of Carson Valley",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2000 · 1596 Esmeralda Ave. · Minden"
+  },
+  {
+    "id": "nrhp:15001029",
+    "name": "It-goom-mum teh-weh-weh ush-shah-ish",
+    "layer": "register",
+    "reason": "No coordinates in the Wikipedia NRHP list",
+    "wikipedia": "https://en.wikipedia.org/wiki/It-goom-mum_teh-weh-weh_ush-shah-ish",
+    "detail": "National Register 2016"
+  },
+  {
+    "id": "srhp:180158",
+    "name": "Lampe, Wilhelm & William, Ranch",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2018 · 1335 Centerville Lane · Gardnerville"
+  },
+  {
+    "id": "srhp:180157",
+    "name": "Stodieck, Louis & Elmer, Ranch",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register 2018 · 1350 Wilhelm Place · Gardnerville"
+  },
+  {
+    "id": "srhp:810069",
+    "name": "Walley’s Hot Springs",
+    "layer": "register",
+    "reason": "State Register lists no coordinates",
+    "detail": "State Register · State Route #57, locally called Foothill Road · Genoa (vicinity)"
+  }
+]

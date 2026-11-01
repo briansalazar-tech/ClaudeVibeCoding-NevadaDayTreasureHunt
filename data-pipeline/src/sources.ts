@@ -73,7 +73,32 @@ export const SOURCES = {
     name: 'Past medallion finds, entered by hand',
     url: 'shared/src/past-finds.ts',
   },
+  parcelParks: {
+    name: 'Parks known only by their parcel, entered by hand',
+    url: 'data-pipeline/src/sources.ts',
+  },
 } as const;
+
+/**
+ * Parks that no source names, tied to the public-owner parcel they sit on. The parcel gives the
+ * outline; only the name is entered by hand, and only from a confirmed source.
+ */
+export interface ParcelPark {
+  county: CountyId;
+  /** The APN as the county's parcel source stores it. */
+  apn: string;
+  name: string;
+  note: string;
+}
+
+export const PARCEL_PARKS: readonly ParcelPark[] = [
+  {
+    county: 'storey',
+    apn: '307204',
+    name: 'Virginia City Highlands Park',
+    note: 'Site of the 2026 medallion find. Not in OpenStreetMap.',
+  },
+];
 
 /** The HMdb results page for a county, where "Download" saves the county's markers as CSV. */
 export function hmdbCountyPage(countyName: string): string {
@@ -115,7 +140,16 @@ export const PARCEL_SOURCES: Partial<Record<CountyId, ParcelSource>> = {
     acresField: 'PACRES',
     vintage: 'current',
   },
-  // Washoe has a current parcel service with owners too; add it here in Phase 3.
+  washoe: {
+    name: 'Washoe County parcels (current)',
+    url: 'https://wcgisweb.washoecounty.us/arcgis/rest/services/OpenData/OpenData/FeatureServer/0',
+    // Organizations are in LASTNAME with FIRSTNAME empty; skipping people keeps the download small.
+    ownerField: 'LASTNAME',
+    apnField: 'PIN', // the formatted APN (001-061-11); APN is an integer that drops leading zeros
+    acresField: 'ACREAGE',
+    where: "FIRSTNAME IS NULL OR FIRSTNAME = ''",
+    vintage: 'current',
+  },
 };
 
 /** The 2018 statewide parcels, filtered to one county. Field names follow the NDSL copy of this file. */
@@ -126,7 +160,7 @@ export function statewideParcelSource(countyName: string): ParcelSource {
     ownerField: 'OwnerName',
     apnField: 'APN',
     acresField: 'Acres',
-    where: `County = '${countyName.toUpperCase()}'`,
+    where: `County = '${countyName}'`,
     vintage: '2018',
   };
 }

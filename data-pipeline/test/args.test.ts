@@ -4,7 +4,14 @@ import { parseArgs } from '../src/lib/args.js';
 
 describe('parseArgs', () => {
   it('defaults to no counties and no force', () => {
-    expect(parseArgs([])).toEqual({ counties: [], force: false });
+    expect(parseArgs([])).toEqual({ counties: [], force: false, skip: [] });
+  });
+
+  it('accepts --skip with one or more fetch steps', () => {
+    expect(parseArgs(['--all', '--skip', 'osm']).skip).toEqual(['osm']);
+    expect(parseArgs(['--skip=osm,parcels']).skip).toEqual(['osm', 'parcels']);
+    expect(() => parseArgs(['--skip', 'hmdb'])).toThrow(/Unknown step "hmdb"/);
+    expect(() => parseArgs(['--skip'])).toThrow(/needs a value/);
   });
 
   it('accepts --county in several forms', () => {
@@ -17,6 +24,7 @@ describe('parseArgs', () => {
     expect(parseArgs(['--all', '--force'])).toEqual({
       counties: COUNTIES.map((c) => c.id),
       force: true,
+      skip: [],
     });
   });
 

@@ -92,9 +92,38 @@ describe('clipping to a county', () => {
         geometry: { type: 'Point', coordinates: [20, 20] },
       },
     ];
-    const out = finalizeDrafts(drafts, 'lyon', square);
+    const out = finalizeDrafts(drafts, 'lyon', square, { tolerance: 0 });
     expect(out).toHaveLength(1);
     expect(out[0]?.properties).toMatchObject({ id: 'a', county: 'lyon', lng: 2, lat: 2 });
+  });
+
+  it('simplifies lines, dropping vertices that sit within the tolerance of the line', () => {
+    const wiggle: LayerDraft = {
+      id: 'w',
+      layer: 'streets',
+      kind: 'track',
+      name: 'Track',
+      named: false,
+      source: 't',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [1, 1],
+          [1.5, 1.000001], // about 10 cm off the line
+          [2, 1],
+          [2.5, 1.5],
+        ],
+      },
+    };
+    const [out] = finalizeDrafts([wiggle], 'lyon', square);
+    expect(out?.geometry).toEqual({
+      type: 'LineString',
+      coordinates: [
+        [1, 1],
+        [2, 1],
+        [2.5, 1.5],
+      ],
+    });
   });
 });
 

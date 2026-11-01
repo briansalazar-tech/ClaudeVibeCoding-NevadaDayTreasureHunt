@@ -1,4 +1,5 @@
 import pointOnFeature from '@turf/point-on-feature';
+import simplify from '@turf/simplify';
 import { feature } from '@turf/helpers';
 import type { Geometry, Position } from 'geojson';
 import type { CountyId, PlaceFeature, PlaceProperties } from '@hunt/shared';
@@ -27,19 +28,37 @@ export function representativePoint(geometry: Geometry): Position {
 const round5 = (n: number) => Math.round(n * 1e5) / 1e5;
 
 /**
- * Clips drafts to the county, rounds coordinates, and fills in county and representative point.
- * Drafts that fall outside the county are dropped. Undefined properties are left out of the file.
+ * Line and polygon simplification tolerance in degrees (about 2 m): invisible at the zooms the
+ * heavy layers show at, and it cuts the vertex count of OSM tracks by about a third.
+ */
+export const SIMPLIFY_TOLERANCE = 0.00002;
+
+function simplified(geometry: Geometry, tolerance: number): Geometry {
+  if (geometry.type === 'Point' || tolerance <= 0) return geometry;
+  try {
+    return simplify(feature(geometry), { tolerance, highQuality: false }).geometry;
+  } catch {
+    // Turf rejects degenerate rings (slivers left by clipping); keep those as they are.
+    return geometry;
+  }
+}
+
+/**
+ * Clips drafts to the county, simplifies and rounds coordinates, and fills in county and
+ * representative point. Drafts that fall outside the county are dropped. Undefined properties
+ * are left out of the file.
  */
 export function finalizeDrafts(
   drafts: readonly LayerDraft[],
   county: CountyId,
   area: ClipArea,
+  { tolerance = SIMPLIFY_TOLERANCE } = {},
 ): PlaceFeature[] {
   const out: PlaceFeature[] = [];
   for (const { geometry, ...props } of drafts) {
     const clipped = clipGeometry(geometry, area);
     if (!clipped) continue;
-    const g = roundCoords(clipped);
+    const g = roundCoords(simplified(clipped, tolerance));
     const properties: PlaceProperties = { ...props, county };
     if (g.type !== 'Point') {
       const [lng, lat] = representativePoint(g);

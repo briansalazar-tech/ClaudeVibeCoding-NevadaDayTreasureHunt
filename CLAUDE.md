@@ -101,13 +101,15 @@ Scripts in `data-pipeline/` download and process the map data ahead of time; the
   - SHPO state markers come from the JSON feed behind shpo.nv.gov's marker map (`/historical-markers-json`), with coordinates, numbers and page slugs. The marker booklet PDF isn't needed.
   - The State Register list is a SHPO PDF parsed with unpdf (text positions; the page is landscape). NRHP coordinates come from the Wikipedia county NRHP lists.
   - BLM SMA is one statewide polygon per agency from the BLM Nevada FeatureServer, cached in `raw/blm-sma/` and clipped per county part by part.
-  - Parcels: Lyon uses its own current assessor service (`PARCEL_SOURCES` in `sources.ts`). Counties without one fall back to the 2018 NDOT statewide service, which was down ("Could not access any server machines") in Oct 2026; check it before Phase 3. Owner attributes download first and public owners are picked locally, then only their geometry is fetched.
+  - Parcels: Lyon and Washoe use their own current county services (`PARCEL_SOURCES` in `sources.ts`; Washoe's skips people's names, keeping organizations only). The other counties fall back to the 2018 NDOT statewide service, which is down at times ("Could not access any server machines") but worked on 2026-10-31. Owner attributes download first and public owners are picked locally, then only their geometry is fetched. ArcGIS paging advances by the rows actually returned, since servers can cap a page below the requested size (Washoe returns 1,000).
+  - Parks that no source names go in `PARCEL_PARKS` (`sources.ts`) by APN: the public parcel supplies the outline, and only the confirmed name is entered by hand. Virginia City Highlands Park (the 2026 find) is in the Parks layer this way.
 - Go easy on public APIs: run Overpass queries one at a time, cache the responses in `raw/`, and don't re-download on every run. The public Overpass server is often at capacity (429/504); the fetch backs off for minutes and retries. Never ask Overpass for `out geom` on non-multipolygon relations in the history and nature queries: route relations that cross the continent (historic trails) make the query time out.
 - Deduplicate GNIS features against OSM by name and distance. The earlier build skipped about 1,050 duplicates.
 - BLM SMA labels county and city land as "Private". Overlay the public-owner parcel layer so county and city land shows as public.
 - The statewide parcels reflect 2018 ownership. Lyon's current assessor service replaces them for Lyon; Washoe County has a current parcel service with owner data that can replace them for Washoe (add it to `PARCEL_SOURCES`).
 - Never guess coordinates. Places without a confirmed location go in a "Not on the map" list in the county panel. Thirteen archaeological register sites are confidential by design; don't try to locate them.
 - Heavy layers (streets, land ownership, parcels) load per county and only above a minimum zoom. If a processed file exceeds about 10 MB, simplify it with mapshaper or switch that layer to PMTiles (tippecanoe needs WSL or Docker on Windows).
+- File size: `finalizeDrafts` simplifies every line and polygon to about 2 m (`SIMPLIFY_TOLERANCE`), and layer files are written with `packLayerFile()` (`shared/src/data-files.ts`): `layer` and `county` are dropped (the path gives them) and a shared `source` is stored once. The client restores them with `unpackLayerFile()`. Washoe streets is the largest file at 9.9 MB; if it grows past 10 MB, switch streets to PMTiles.
 
 Show these attributions in the map's attribution control:
 - OpenStreetMap: "© OpenStreetMap contributors" (ODbL).
@@ -125,7 +127,7 @@ Phase workflow:
 5. Give the user a validation checklist with steps to follow in the running app. **Stop and wait.** Don't merge to `main` or begin the next phase until the user confirms the phase is valid.
 6. After the user confirms, commit, merge the branch into `main` with `--no-ff`, push to GitHub (`origin`), and push the phase branch too.
 
-**Status:** Phase 1 is complete (merged to `main` on 2026-10-29). Phase 2 is complete (merged to `main` on 2026-10-31). Next is Phase 3.
+**Status:** Phase 1 is complete (merged to `main` on 2026-10-29). Phase 2 is complete (merged to `main` on 2026-10-31). Phase 3 is complete (merged to `main` on 2026-10-31). Next is Phase 4.
 
 ### Phase 1: Base Map
 Create the base map layer that displays the listed counties. Each county can be selected and is interactive.
@@ -199,6 +201,7 @@ npm run test                         # Vitest, all workspaces (test:watch for wa
 npm run db:migrate                   # apply Drizzle migrations (the server also applies them on startup)
 npm run db:generate -w server        # generate a migration after changing server/src/db/schema.ts
 npm run data:fetch -- --county lyon  # download raw source data for one county (or --all); cached, --force re-downloads
+npm run data:fetch -- --all --skip osm  # leave out steps (osm, parcels, county-parks, register, ghost-towns), e.g. while Overpass is overloaded
 npm run data:build -- --county lyon  # process raw data into client/public/data (county boundaries are always rebuilt)
 ```
 
@@ -211,11 +214,12 @@ Decisions and pitfalls from earlier phases. Check these before changing the rela
 - **MapLibre worker:** MapLibre 6 builds its worker URL at runtime, so Vite doesn't serve or bundle the worker. `client/src/map/MapView.tsx` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?url` and calls `setWorkerUrl()`. Without that, vector tiles (the Streets basemap) and every GeoJSON layer stay blank, while the raster basemaps still draw.
 - **Map overlay:** everything drawn on top of the basemap is defined in `client/src/map/overlay.ts` (counties) and `client/src/map/dataLayers.ts` (data layers and custom markers), with ids prefixed `hunt-`. A `transformStyle` hook re-adds it on every `setStyle`, so switching basemaps keeps it; `MapView` tracks which features each source holds and re-sends data that arrived while a style was loading. State changes (selection, theme, label size, layer toggles) go through `applyOverlayState()`. Hover uses feature-state (`promoteId: 'id'`). Add new layers the same way.
 - **Map icons** are drawn on a canvas by `client/src/map/icons.ts` through `map.setMissingStyleImageResolver()`; the icon id encodes shape, color and size. (The older `styleimagemissing` event still draws them, but MapLibre 6 logs a warning for every icon.)
-- **Layer data:** `client/src/layerData.ts` decides which `<county>/<layer>.geojson` files to load (TanStack Query, cached for the session). Light layers load when on; heavy layers (streets, land) load for the selected county or once zoomed in to their `minzoom` over a county. A selected county loads all its layers for the place list. Popups look up the land owner from the county's land layer.
+- **Layer data:** `client/src/layerData.ts` decides which `<county>/<layer>.geojson` files to load (TanStack Query, cached for the session). Light layers load when on; heavy layers (streets, land) load for the selected county or once zoomed in to their `minzoom` over a county. "Over a county" is `countyInView()`, which tests the outline, not the bounding box: around Reno five counties' boxes overlap the same view. A selected county loads all its layers for the place list. Popups look up the land owner from the county's land layer.
 - **Map clicks:** with a county isolated, any click outside it, including on another county, returns to the full view.
 - **State:** `client/src/state/store.ts` (Zustand). Display settings (basemap, theme, label size) and layer toggles are saved in localStorage under `hunt-map-settings`; new layers default to on (land ownership defaults to off). Selection is not saved. Server data (custom markers) goes through TanStack Query hooks in `client/src/api.ts`.
 - **Keyboard:** Esc closes an open popup first, then cancels marker placement, then returns to all counties.
 - **Tests:** the root `vitest.config.ts` defines a project per workspace, and client tests run in jsdom. MapLibre can't run in jsdom, so test the pure style builders in `overlay.ts`, the store, and the components. Check the map itself in a browser (see the phase workflow).
+- **Line endings:** `.gitattributes` forces LF. Git for Windows ships with `core.autocrlf=true`, which checks files out with CRLF, and then `prettier --check` fails on every file.
 - **Shell quirk:** heredocs in the Bash tool can collapse `\\` to `\`, and can break on quote-heavy text such as CSS. Write files that contain backslashes, such as regexes, with the Write or Edit tool.
 - **Dev servers on Windows:** stopping an `npm run dev` background task can leave its Vite child running, so the next start moves to 5174, 5175, and so on. Read the port from the Vite output instead of assuming 5173.
 

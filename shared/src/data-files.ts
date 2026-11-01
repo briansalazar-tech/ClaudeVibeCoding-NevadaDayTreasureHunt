@@ -56,3 +56,52 @@ export interface CountyManifest {
 export type PlaceFeature = Feature<Geometry, PlaceProperties>;
 export type PlaceCollection = FeatureCollection<Geometry, PlaceProperties>;
 export type UnlocatedList = UnlocatedPlace[];
+
+/**
+ * A layer file as stored. `layer` and `county` come from the file's path, and `source` is
+ * stored once on the file when every feature shares it: repeated on 25,000 Washoe streets,
+ * those three fields alone were 1.6 MB.
+ */
+export interface LayerFileData {
+  type: 'FeatureCollection';
+  source?: string;
+  features: Feature<
+    Geometry,
+    Omit<PlaceProperties, 'layer' | 'county' | 'source'> & { source?: string }
+  >[];
+}
+
+export function packLayerFile(features: readonly PlaceFeature[]): LayerFileData {
+  const sources = new Set(features.map((f) => f.properties.source));
+  const shared = sources.size === 1 ? [...sources][0] : undefined;
+  return {
+    type: 'FeatureCollection',
+    ...(shared !== undefined ? { source: shared } : {}),
+    features: features.map(({ properties, ...f }) => {
+      const rest: Partial<PlaceProperties> = { ...properties };
+      delete rest.layer;
+      delete rest.county;
+      if (shared !== undefined) delete rest.source;
+      return { ...f, properties: rest as LayerFileData['features'][number]['properties'] };
+    }),
+  };
+}
+
+export function unpackLayerFile(
+  file: LayerFileData,
+  county: CountyId,
+  layer: DataLayerId,
+): PlaceCollection {
+  return {
+    type: 'FeatureCollection',
+    features: file.features.map((f) => ({
+      ...f,
+      properties: {
+        ...f.properties,
+        layer,
+        county,
+        source: f.properties.source ?? file.source ?? '',
+      },
+    })),
+  };
+}
