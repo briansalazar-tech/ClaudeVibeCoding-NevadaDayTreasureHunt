@@ -42,7 +42,7 @@ Each of the following layers can be toggled on or off on top of the map. Layers 
 | Layer | Contents | Sources |
 |---|---|---|
 | Streets & roads | Street names; paved highways, local streets, gravel roads, dirt roads, and 4x4 tracks, styled by surface. Name labels toggle separately. | OSM |
-| Parks | All public parks: state, county, and city, regardless of size or location. Includes playgrounds, dog parks, picnic sites, reserves, and sports fields. | OSM, Washoe County Regional Parks & Open Spaces, public-owner parcels |
+| Parks | All public parks: state, county, and city, regardless of size or location. Includes playgrounds, dog parks, picnic sites, reserves, and sports fields. | OSM, Washoe County Regional Parks & Open Spaces, Lyon County park parcels, public-owner parcels (`PARCEL_PARKS`) |
 | Trails & trailheads | Hiking trails, trailheads, viewpoints | OSM |
 | Historic trails *(prev)* | California Trail, Pony Express, Lincoln Highway (partial) | NPS (CALI_NHT, POEX_NHT); OSM road names for the Lincoln Highway |
 | Towns & cities | Cities, towns, and named communities | OSM |
@@ -51,7 +51,7 @@ Each of the following layers can be toggled on or off on top of the map. Layers 
 | Historical markers | All other HMdb markers, each linked to its HMdb page | HMdb |
 | Register sites *(prev)* | National and State Register of Historic Places sites | SHPO register lists, Wikipedia NRHP coordinates |
 | Ghost towns | Ghost towns and abandoned settlements | Wikipedia ghost town list and articles, OSM |
-| Land ownership | Public vs private land: BLM, Forest Service, State, Reclamation, Fish & Wildlife, NPS, tribal, military, DOE, private. Also parcels owned by counties, cities, towns, GIDs, the state, school districts, and HOAs. | BLM Surface Management Agency (SMA), NDOT 2018 statewide parcels |
+| Land ownership | Public vs private land: BLM, Forest Service, State, Reclamation, Fish & Wildlife, NPS, tribal, military, DOE, private. Also parcels owned by counties, cities, towns, GIDs, the state, school districts, and HOAs. | BLM Surface Management Agency (SMA); current Lyon and Washoe parcel services, NDOT 2018 statewide parcels for the other counties |
 | Other notable | Petroglyph sites, railroads (active and abandoned), mines, ruins, other historic sites | OSM |
 | Past finds *(prev)* | Known medallion find locations. 2026: Virginia City Highlands Park, Storey County (39.38095, -119.64143) | Entered by hand |
 | Custom markers | Markers the user adds | SQLite |
@@ -106,7 +106,7 @@ Scripts in `data-pipeline/` download and process the map data ahead of time; the
 - Go easy on public APIs: run Overpass queries one at a time, cache the responses in `raw/`, and don't re-download on every run. The public Overpass server is often at capacity (429/504); the fetch backs off for minutes and retries. Never ask Overpass for `out geom` on non-multipolygon relations in the history and nature queries: route relations that cross the continent (historic trails) make the query time out.
 - Deduplicate GNIS features against OSM by name and distance. The earlier build skipped about 1,050 duplicates.
 - BLM SMA labels county and city land as "Private". Overlay the public-owner parcel layer so county and city land shows as public.
-- The statewide parcels reflect 2018 ownership. Lyon's current assessor service replaces them for Lyon; Washoe County has a current parcel service with owner data that can replace them for Washoe (add it to `PARCEL_SOURCES`).
+- The statewide parcels reflect 2018 ownership; popups for those parcels say "2018 owner". Lyon and Washoe use current county services instead. No public service was found for Carson City or Douglas in Oct 2026; add one to `PARCEL_SOURCES` if it turns up.
 - Never guess coordinates. Places without a confirmed location go in a "Not on the map" list in the county panel. Thirteen archaeological register sites are confidential by design; don't try to locate them.
 - Heavy layers (streets, land ownership, parcels) load per county and only above a minimum zoom. If a processed file exceeds about 10 MB, simplify it with mapshaper or switch that layer to PMTiles (tippecanoe needs WSL or Docker on Windows).
 - File size: `finalizeDrafts` simplifies every line and polygon to about 2 m (`SIMPLIFY_TOLERANCE`), and layer files are written with `packLayerFile()` (`shared/src/data-files.ts`): `layer` and `county` are dropped (the path gives them) and a shared `source` is stored once. The client restores them with `unpackLayerFile()`. Washoe streets is the largest file at 9.9 MB; if it grows past 10 MB, switch streets to PMTiles.
@@ -214,7 +214,7 @@ Decisions and pitfalls from earlier phases. Check these before changing the rela
 - **MapLibre worker:** MapLibre 6 builds its worker URL at runtime, so Vite doesn't serve or bundle the worker. `client/src/map/MapView.tsx` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?url` and calls `setWorkerUrl()`. Without that, vector tiles (the Streets basemap) and every GeoJSON layer stay blank, while the raster basemaps still draw.
 - **Map overlay:** everything drawn on top of the basemap is defined in `client/src/map/overlay.ts` (counties) and `client/src/map/dataLayers.ts` (data layers and custom markers), with ids prefixed `hunt-`. A `transformStyle` hook re-adds it on every `setStyle`, so switching basemaps keeps it; `MapView` tracks which features each source holds and re-sends data that arrived while a style was loading. State changes (selection, theme, label size, layer toggles) go through `applyOverlayState()`. Hover uses feature-state (`promoteId: 'id'`). Add new layers the same way.
 - **Map icons** are drawn on a canvas by `client/src/map/icons.ts` through `map.setMissingStyleImageResolver()`; the icon id encodes shape, color and size. (The older `styleimagemissing` event still draws them, but MapLibre 6 logs a warning for every icon.)
-- **Layer data:** `client/src/layerData.ts` decides which `<county>/<layer>.geojson` files to load (TanStack Query, cached for the session). Light layers load when on; heavy layers (streets, land) load for the selected county or once zoomed in to their `minzoom` over a county. "Over a county" is `countyInView()`, which tests the outline, not the bounding box: around Reno five counties' boxes overlap the same view. A selected county loads all its layers for the place list. Popups look up the land owner from the county's land layer.
+- **Layer data:** `client/src/layerData.ts` decides which `<county>/<layer>.geojson` files to load (TanStack Query, cached for the session). Light layers load when on; heavy layers (streets, land) load for the selected county or once zoomed in to their `minzoom` over a county. "Over a county" is `countyInView()`, which tests the outline, not the bounding box: around Reno five counties' boxes overlap the same view. A selected county loads all its layers for the place list. Popups look up the land owner from the county's land layer. At the full-map level no streets are loaded (all eight counties' street files total about 29 MB), so anything that needs every road, such as a full-map road search, can't rely on the loaded layers.
 - **Map clicks:** with a county isolated, any click outside it, including on another county, returns to the full view.
 - **State:** `client/src/state/store.ts` (Zustand). Display settings (basemap, theme, label size) and layer toggles are saved in localStorage under `hunt-map-settings`; new layers default to on (land ownership defaults to off). Selection is not saved. Server data (custom markers) goes through TanStack Query hooks in `client/src/api.ts`.
 - **Keyboard:** Esc closes an open popup first, then cancels marker placement, then returns to all counties.
@@ -226,7 +226,7 @@ Decisions and pitfalls from earlier phases. Check these before changing the rela
 ## Known Gaps from the Earlier Version
 Address these where practical, but don't hold up a phase for them.
 - No satellite basemap: fixed by the USGS Imagery basemap (done in Phase 1).
-- Parcels reflect 2018 ownership: use Washoe's current parcel service, and look for current services in the other counties.
+- Parcels reflect 2018 ownership: Lyon and Washoe now use current county services (done in Phase 3). The other six counties still use the 2018 statewide file.
 - The Lincoln Highway layer is partial.
 - Building outlines are missing: Microsoft's US building footprints are a possible future layer.
 - Notebook link-finding only matches exact spellings of map names: use case- and punctuation-insensitive matching.
