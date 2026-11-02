@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import compression from 'compression';
 import express from 'express';
 import type { Db } from './db/client.js';
 import { errorHandler, HttpError } from './errors.js';
@@ -17,6 +18,9 @@ export interface AppOptions {
 export function createApp(db: Db, { clientDist, geocoder }: AppOptions = {}): express.Express {
   const app = express();
   app.disable('x-powered-by');
+  // Gzip responses: the map data is large JSON (a county's streets run to 10 MB) that shrinks
+  // several times over, which matters on a phone in the field.
+  app.use(compression());
   app.use(express.json({ limit: '1mb' }));
 
   app.get('/api/health', (_req, res) => {
