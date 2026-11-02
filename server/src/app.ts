@@ -3,14 +3,18 @@ import path from 'node:path';
 import express from 'express';
 import type { Db } from './db/client.js';
 import { errorHandler, HttpError } from './errors.js';
+import { geocodeRouter } from './geocode.js';
+import type { Geocoder } from './geocoder.js';
 import { markersRouter } from './markers.js';
 
 export interface AppOptions {
   /** Serve the built client from this directory (production), so one process hosts everything. */
   clientDist?: string;
+  /** Address lookups; without one, /api/geocode answers only from the cache. */
+  geocoder?: Geocoder;
 }
 
-export function createApp(db: Db, { clientDist }: AppOptions = {}): express.Express {
+export function createApp(db: Db, { clientDist, geocoder }: AppOptions = {}): express.Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '1mb' }));
@@ -19,6 +23,7 @@ export function createApp(db: Db, { clientDist }: AppOptions = {}): express.Expr
     res.json({ ok: true });
   });
   app.use('/api/markers', markersRouter(db));
+  app.use('/api/geocode', geocodeRouter(db, geocoder));
   app.use('/api', () => {
     throw new HttpError(404, 'Not found');
   });

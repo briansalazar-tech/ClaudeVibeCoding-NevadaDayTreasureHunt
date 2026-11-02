@@ -32,4 +32,13 @@ export const config = {
   migrationsDir: path.join(SERVER_DIR, 'drizzle'),
   /** The built client, served by the API server in production if it exists. */
   clientDist: path.join(REPO_ROOT, 'client', 'dist'),
+  /** The processed map data; the geocoder reads the county boundaries from it. */
+  mapDataDir: fromRoot(process.env.MAP_DATA_DIR || path.join('client', 'public', 'data')),
+  geocoder: {
+    userAgent: process.env.GEOCODER_USER_AGENT || 'NevadaDayHuntMap/0.1 (personal, non-commercial)',
+    nominatimUrl: process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search',
+    censusUrl:
+      process.env.CENSUS_GEOCODER_URL ||
+      'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
+  },
 };

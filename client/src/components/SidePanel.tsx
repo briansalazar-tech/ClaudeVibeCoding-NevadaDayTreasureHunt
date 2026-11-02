@@ -5,6 +5,7 @@ import {
   type CountyProperties,
   type Marker,
 } from '@hunt/shared';
+import { useState } from 'react';
 import type { BoundaryData } from '../data';
 import type { LoadedLayers } from '../layerData';
 import { useHuntStore, type PanelTab } from '../state/store';
@@ -12,6 +13,7 @@ import { DisplaySettings } from './DisplaySettings';
 import { squareMiles } from './format';
 import { LayerPanel } from './LayerPanel';
 import { PlaceList } from './PlaceList';
+import { MIN_QUERY, SearchBox, SearchResults } from './Search';
 
 const TABS: { id: PanelTab; label: string }[] = [
   { id: 'county', label: 'County' },
@@ -48,6 +50,17 @@ export function SidePanel({
   const setSheetOpen = useHuntStore((s) => s.setSheetOpen);
   const setPanelTab = useHuntStore((s) => s.setPanelTab);
 
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState(0);
+  // Searching a selected county by default; "All counties" lasts until the selection changes.
+  const [allCounties, setAllCounties] = useState(false);
+  const [scopeFor, setScopeFor] = useState(selectedCountyId);
+  if (scopeFor !== selectedCountyId) {
+    setScopeFor(selectedCountyId);
+    setAllCounties(false);
+  }
+  const searching = query.trim().length >= MIN_QUERY;
+
   const selected = data.counties.features.find((f) => f.properties.id === selectedCountyId);
   const title = selected ? countyDisplayName(selected.properties) : 'All counties';
 
@@ -81,9 +94,27 @@ export function SidePanel({
             ›
           </button>
         </nav>
+        <SearchBox
+          query={query}
+          onQuery={setQuery}
+          allCounties={allCounties}
+          onAllCounties={setAllCounties}
+          onSubmit={() => setSubmitted((n) => n + 1)}
+        />
       </header>
       <div className="panel-body" id="panel-body">
-        <div className="tabs" role="tablist" aria-label="Panel sections">
+        {searching && (
+          <SearchResults
+            query={query}
+            manifest={data.manifest}
+            markers={markers}
+            countyOf={countyOf}
+            scope={allCounties ? null : selectedCountyId}
+            onAllCounties={() => setAllCounties(true)}
+            submitted={submitted}
+          />
+        )}
+        <div className="tabs" hidden={searching} role="tablist" aria-label="Panel sections">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -98,7 +129,12 @@ export function SidePanel({
             </button>
           ))}
         </div>
-        <div role="tabpanel" id={`tabpanel-${panelTab}`} aria-labelledby={`tab-${panelTab}`}>
+        <div
+          role="tabpanel"
+          id={`tabpanel-${panelTab}`}
+          aria-labelledby={`tab-${panelTab}`}
+          hidden={searching}
+        >
           {panelTab === 'county' &&
             (selected ? (
               <>

@@ -19,9 +19,12 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      const { markerEditor, setMarkerEditor, selectCounty } = useHuntStore.getState();
-      // Esc backs out of adding a marker first, then out of the selected county.
+      const { markerEditor, setMarkerEditor, selectCounty, pin, highlight, clearSearch } =
+        useHuntStore.getState();
+      // Esc backs out of adding a marker first, then clears a search pin or road highlight,
+      // then leaves the selected county.
       if (markerEditor) setMarkerEditor(null);
+      else if (pin || highlight) clearSearch();
       else selectCounty(null);
     };
     window.addEventListener('keydown', onKey);

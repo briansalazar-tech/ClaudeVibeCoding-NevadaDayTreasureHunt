@@ -106,5 +106,8 @@ export function installIconProvider(map: MapLibreMap): void {
     if (map.hasImage(id)) return;
     const image = drawIcon(id);
     if (image) map.addImage(id, image, { pixelRatio: PIXEL_RATIO });
+    // A basemap icon its own sprite lacks (OpenFreeMap has no "gate" or "office"): it can't be
+    // drawn either way, so a blank one stops MapLibre warning about it on every tile.
+    else map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
   });
 }

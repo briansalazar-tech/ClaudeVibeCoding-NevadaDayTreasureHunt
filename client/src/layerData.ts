@@ -72,6 +72,8 @@ export interface LayerNeeds {
   visible: Record<string, boolean>;
   selectedCountyId: CountyId | null;
   view: MapView | null;
+  /** Counties with a road highlighted from search: their streets load so it can be drawn. */
+  highlightCounties?: readonly CountyId[];
 }
 
 /**
@@ -81,7 +83,7 @@ export interface LayerNeeds {
  */
 export function neededFiles(
   data: Pick<BoundaryData, 'manifest' | 'counties'>,
-  { visible, selectedCountyId, view }: LayerNeeds,
+  { visible, selectedCountyId, view, highlightCounties = [] }: LayerNeeds,
 ): { county: CountyId; layer: DataLayerId }[] {
   const out: { county: CountyId; layer: DataLayerId }[] = [];
   for (const c of data.counties.features) {
@@ -95,7 +97,8 @@ export function neededFiles(
         const inView =
           view !== null && view.zoom >= layer.heavy.minzoom && countyInView(c, view.bounds);
         // The selected county's streets feed its place list even when the layer is off.
-        need = (on && (selected || inView)) || (selected && layer.id === 'streets');
+        const highlighted = layer.id === 'streets' && highlightCounties.includes(county);
+        need = (on && (selected || inView || highlighted)) || (selected && layer.id === 'streets');
       } else {
         need = on || selected;
       }
@@ -118,9 +121,10 @@ export function useLayerData(data: BoundaryData): LoadedLayers {
   const visible = useHuntStore((s) => s.layers);
   const selectedCountyId = useHuntStore((s) => s.selectedCountyId);
   const view = useHuntStore((s) => s.view);
+  const highlightCounties = useHuntStore((s) => s.highlight?.counties);
   const files = useMemo(
-    () => neededFiles(data, { visible, selectedCountyId, view }),
-    [data, visible, selectedCountyId, view],
+    () => neededFiles(data, { visible, selectedCountyId, view, highlightCounties }),
+    [data, visible, selectedCountyId, view, highlightCounties],
   );
   const results = useQueries({ queries: files.map((f) => layerQuery(f.county, f.layer)) });
 

@@ -104,4 +104,27 @@ describe('SidePanel', () => {
     await user.click(screen.getByRole('button', { name: /^Mineral/ }));
     expect(screen.getByText('No layer data has been built for this county yet.')).toBeVisible();
   });
+
+  it('searches coordinates from the header and drops a pin', async () => {
+    useHuntStore.setState({ pin: null, highlight: null });
+    const user = renderPanel();
+    await user.type(screen.getByLabelText('Search the map'), `39°22'51.4"N 119°38'29.1"W`);
+    const go = await screen.findByRole('button', { name: /Go to 39\.3809\d, -119\.6414\d/ });
+    expect(screen.getByRole('tablist', { hidden: true })).not.toBeVisible();
+    await user.click(go);
+    const pin = useHuntStore.getState().pin;
+    expect(pin?.lat).toBeCloseTo(39.38095, 4);
+    expect(pin?.lng).toBeCloseTo(-119.64143, 4);
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(useHuntStore.getState().pin).toBeNull();
+    expect(screen.getByRole('tablist')).toBeVisible();
+  });
+
+  it('offers a county or all-counties scope once a county is selected', async () => {
+    useHuntStore.setState({ selectedCountyId: 'storey' });
+    const user = renderPanel();
+    expect(screen.getByRole('radio', { name: 'In Storey County' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'All counties' }));
+    expect(screen.getByRole('radio', { name: 'All counties' })).toBeChecked();
+  });
 });
