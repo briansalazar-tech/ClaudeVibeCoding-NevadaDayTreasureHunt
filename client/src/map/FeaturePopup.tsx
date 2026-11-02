@@ -1,4 +1,5 @@
 import {
+  formatDms,
   kindLabel,
   landKindName,
   layerName,
@@ -12,17 +13,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useDeleteMarker } from '../api';
 import { landOwnerAt } from '../layerData';
-import { useHuntStore } from '../state/store';
+import { useHuntStore, type PointPin } from '../state/store';
 
 export type PopupTarget =
   | { type: 'place'; props: PlaceProperties; lng: number; lat: number }
-  | { type: 'marker'; marker: Marker; county: CountyId | null };
+  | { type: 'marker'; marker: Marker; county: CountyId | null }
+  | { type: 'point'; pin: PointPin; county: CountyId | null };
 
 function formatCoord(n: number): string {
   return n.toFixed(5);
 }
 
-function Coordinates({ lat, lng }: { lat: number; lng: number }) {
+function Coordinates({ lat, lng, dms = false }: { lat: number; lng: number; dms?: boolean }) {
   const [copied, setCopied] = useState(false);
   const text = `${formatCoord(lat)}, ${formatCoord(lng)}`;
   const copy = () => {
@@ -37,6 +39,11 @@ function Coordinates({ lat, lng }: { lat: number; lng: number }) {
       <button type="button" className="small-button" onClick={copy} aria-label="Copy coordinates">
         {copied ? 'Copied' : 'Copy'}
       </button>
+      {dms && (
+        <code className="popup-dms">
+          {formatDms(lat, 'lat')} {formatDms(lng, 'lng')}
+        </code>
+      )}
     </div>
   );
 }
@@ -98,6 +105,8 @@ function Links({ lat, lng, props }: { lat: number; lng: number; props?: PlacePro
 export function FeaturePopup({ target, manifest }: { target: PopupTarget; manifest: Manifest }) {
   if (target.type === 'marker')
     return <MarkerPopup marker={target.marker} county={target.county} manifest={manifest} />;
+  if (target.type === 'point')
+    return <PointPopup pin={target.pin} county={target.county} manifest={manifest} />;
   const { props, lat, lng } = target;
   const kind = props.layer === 'land' ? landKindName(props.kind) : kindLabel(props.kind);
   const surface =
@@ -179,6 +188,68 @@ function MarkerPopup({
         )}
       </div>
       {remove.isError && <p className="form-error">{remove.error.message}</p>}
+    </div>
+  );
+}
+
+function distance(meters: number): string {
+  if (meters < 10) return 'here';
+  const feet = meters * 3.28084;
+  return feet < 1000 ? `${Math.round(feet / 10) * 10} ft` : `${(meters / 1609.34).toFixed(1)} mi`;
+}
+
+/** A searched coordinate or address: what's there, and a way to mark it. */
+function PointPopup({
+  pin,
+  county,
+  manifest,
+}: {
+  pin: PointPin;
+  county: CountyId | null;
+  manifest: Manifest;
+}) {
+  const setMarkerEditor = useHuntStore((s) => s.setMarkerEditor);
+  const focusFeature = useHuntStore((s) => s.focusFeature);
+  return (
+    <div className="popup">
+      <h3>{pin.title}</h3>
+      <p className="popup-sub">{pin.subtitle}</p>
+      {pin.warning && (
+        <p className="popup-warning" role="status">
+          {pin.warning}
+        </p>
+      )}
+      <Coordinates lat={pin.lat} lng={pin.lng} dms />
+      <LandOwner manifest={manifest} county={county} lat={pin.lat} lng={pin.lng} />
+      {pin.nearby.length > 0 && (
+        <div className="popup-nearby">
+          <span className="popup-label">At this spot</span>
+          <ul>
+            {pin.nearby.map((n) => (
+              <li key={`${n.layer}|${n.id}`}>
+                <button type="button" className="link-button" onClick={() => focusFeature(n)}>
+                  {n.name}
+                </button>{' '}
+                <span className="muted">
+                  {layerName(n.layer)} · {distance(n.meters)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <Links lat={pin.lat} lng={pin.lng} />
+      <div className="popup-actions">
+        <button
+          type="button"
+          className="small-button"
+          onClick={() =>
+            setMarkerEditor({ mode: 'form', markerId: null, lat: pin.lat, lng: pin.lng })
+          }
+        >
+          + Marker here
+        </button>
+      </div>
     </div>
   );
 }

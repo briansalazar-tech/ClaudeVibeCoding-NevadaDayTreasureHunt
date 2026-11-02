@@ -19,3 +19,16 @@ export const markers = sqliteTable('markers', {
 });
 
 export type MarkerRow = typeof markers.$inferSelect;
+
+/** Address lookups, so a repeated search doesn't go back to Nominatim or the Census geocoder. */
+export const geocodeCache = sqliteTable('geocode_cache', {
+  /** The query, lowercased with spaces collapsed. */
+  query: text('query').primaryKey(),
+  /** 'nominatim', 'census', or null when neither found anything. */
+  source: text('source'),
+  /** JSON: the in-area results and how many fell outside. */
+  results: text('results').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export type GeocodeCacheRow = typeof geocodeCache.$inferSelect;

@@ -31,6 +31,8 @@ export interface DataLayerState {
   selectedCountyId: CountyId | null;
   layers: Record<LayerId, boolean>;
   streetLabels: boolean;
+  /** Street pieces picked in search, drawn with a glow under the streets. */
+  highlightIds: readonly string[];
 }
 
 export const LABEL_SCALE: Record<LabelSize, number> = { S: 0.8, M: 1, L: 1.25, XL: 1.5 };
@@ -52,6 +54,9 @@ export const LAYER_COLORS: Record<LayerId, string> = {
   'past-finds': '#eab308',
   custom: '#0891b2',
 };
+
+/** The glow under roads picked in search. */
+export const HIGHLIGHT_COLOR = '#f59e0b';
 
 export const STATUS_COLORS: Record<MarkerStatus, string> = {
   'to-check': '#2563eb',
@@ -342,6 +347,23 @@ export function dataLayersBelow(state: DataLayerState): LayerSpecification[] {
     ],
   ];
   out.push(
+    {
+      id: 'hunt-streets-highlight',
+      type: 'line',
+      source: src('streets'),
+      layout: {
+        visibility: visibility(on.streets && state.highlightIds.length > 0),
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      filter: all(county, ['in', ['get', 'id'], ['literal', [...state.highlightIds]]]),
+      paint: {
+        'line-color': HIGHLIGHT_COLOR,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 7, 5, 14, 14],
+        'line-opacity': 0.6,
+        'line-blur': 1,
+      },
+    },
     {
       id: 'hunt-streets-solid',
       type: 'line',

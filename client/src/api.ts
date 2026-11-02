@@ -1,4 +1,4 @@
-import type { Marker, MarkerInput, MarkerPatch } from '@hunt/shared';
+import type { GeocodeResponse, Marker, MarkerInput, MarkerPatch } from '@hunt/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** The API is on the same origin by default (Vite forwards /api); VITE_API_URL points elsewhere. */
@@ -61,5 +61,13 @@ export function useDeleteMarker() {
   return useMutation({
     mutationFn: (id: number) => api<void>(`/api/markers/${id}`, { method: 'DELETE' }),
     onSuccess: () => client.invalidateQueries({ queryKey: MARKERS_KEY }),
+  });
+}
+
+/** Address lookup through the server (Nominatim, then the Census geocoder), only on request. */
+export function useGeocode() {
+  return useMutation({
+    mutationFn: (q: string) =>
+      api<GeocodeResponse>(`/api/geocode?${new URLSearchParams({ q }).toString()}`),
   });
 }

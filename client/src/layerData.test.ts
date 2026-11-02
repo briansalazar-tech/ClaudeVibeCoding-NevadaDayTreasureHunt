@@ -86,4 +86,14 @@ describe('neededFiles', () => {
     );
     expect(selected).toContainEqual({ county: 'lyon', layer: 'streets' });
   });
+
+  it('loads streets for counties with a road highlighted from search', () => {
+    const view = { zoom: 6, bounds: [0, 0, 4, 4] as [number, number, number, number] };
+    const files = neededFiles(
+      { counties, manifest },
+      { visible, selectedCountyId: null, view, highlightCounties: ['storey'] },
+    );
+    expect(files).toContainEqual({ county: 'storey', layer: 'streets' });
+    expect(files).not.toContainEqual({ county: 'lyon', layer: 'streets' });
+  });
 });

@@ -899,6 +899,93 @@ a {
   color: #dc2626;
 }
 
+/* ---------- Search ---------- */
+
+/* Panel parts hidden while search results show; their own display rules would override it. */
+.panel-body [hidden] {
+  display: none;
+}
+
+.search-box {
+  margin-top: 8px;
+}
+
+.search-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.search-row .text-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-scope {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.search-scope label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.search-results {
+  display: grid;
+  gap: 6px;
+}
+
+.search-hit {
+  display: grid;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-hit:hover,
+.search-hit:focus-visible {
+  background: var(--bg-hover);
+}
+
+.search-lookup {
+  border: 1px dashed var(--border);
+}
+
+.popup-warning {
+  margin: 4px 0;
+  font-size: 0.85rem;
+  color: #b45309;
+}
+
+.popup-coords {
+  flex-wrap: wrap;
+}
+
+.popup-dms {
+  flex-basis: 100%;
+}
+
+.popup-nearby ul {
+  margin: 2px 0 6px;
+  padding-left: 18px;
+}
+
+.popup-nearby .link-button {
+  padding: 0;
+  text-align: left;
+}
+
 /* ---------- Phone: map on top, panel as a bottom sheet ---------- */
 
 @media (max-width: 720px) {

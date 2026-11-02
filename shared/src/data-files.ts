@@ -50,6 +50,8 @@ export interface CountyManifest {
   layers: Partial<Record<DataLayerId, { count: number; bytes?: number }>>;
   /** Number of entries in unlocated.json. */
   unlocated?: number;
+  /** Number of entries in search.json. */
+  search?: number;
   buildDate?: string;
 }
 

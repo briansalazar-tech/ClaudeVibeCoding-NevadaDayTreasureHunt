@@ -15,6 +15,7 @@ import type { FeatureCollection } from 'geojson';
 import {
   GeolocateControl,
   Map as MapLibreMap,
+  Marker as MapMarker,
   NavigationControl,
   Popup,
   ScaleControl,
@@ -24,13 +25,20 @@ import {
   type MapMouseEvent,
 } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BoundaryData } from '../data';
 import { countyAt as countyContaining } from '../layerData';
-import { useHuntStore } from '../state/store';
+import { highlightedStreetIds } from '../search/highlight';
+import { useHuntStore, type PointPin } from '../state/store';
 import { baseStyle } from './basemaps';
-import { CLICKABLE_LAYERS, MARKERS_LAYER, MARKERS_SOURCE, dataSourceId } from './dataLayers';
+import {
+  CLICKABLE_LAYERS,
+  HIGHLIGHT_COLOR,
+  MARKERS_LAYER,
+  MARKERS_SOURCE,
+  dataSourceId,
+} from './dataLayers';
 import { FeaturePopup, type PopupTarget } from './FeaturePopup';
 import { installIconProvider } from './icons';
 import { markersCollection } from './markerSource';
@@ -54,9 +62,9 @@ const HIT_RADIUS = 7;
 const OSM_ATTRIBUTION =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
 
-function overlayState(): OverlayState {
+function overlayState(highlightIds: readonly string[]): OverlayState {
   const { theme, labelSize, selectedCountyId, layers, streetLabels } = useHuntStore.getState();
-  return { theme, labelSize, selectedCountyId, layers, streetLabels };
+  return { theme, labelSize, selectedCountyId, layers, streetLabels, highlightIds };
 }
 
 function countyAt(map: MapLibreMap, e: MapMouseEvent): CountyId | null {
@@ -140,6 +148,8 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   const visible = useHuntStore((s) => s.layers);
   const streetLabels = useHuntStore((s) => s.streetLabels);
   const focus = useHuntStore((s) => s.focus);
+  const pin = useHuntStore((s) => s.pin);
+  const highlight = useHuntStore((s) => s.highlight);
   const placing = useHuntStore((s) => s.markerEditor?.mode === 'placing');
 
   // What the overlay draws, kept current for transformStyle (re-run on every basemap switch).
@@ -150,9 +160,15 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   });
   const markersRef = useRef(markers);
   const layersRef = useRef(layers);
+  const highlightIds = useMemo(
+    () => highlightedStreetIds(layers.streets, highlight),
+    [layers.streets, highlight],
+  );
+  const highlightIdsRef = useRef(highlightIds);
   useEffect(() => {
     markersRef.current = markers;
     layersRef.current = layers;
+    highlightIdsRef.current = highlightIds;
   });
   const showPopupRef = useRef<((target: PopupTarget) => void) | null>(null);
   // The features each data source currently holds, so unchanged layers aren't re-sent.
@@ -173,7 +189,7 @@ export function MapView({ data, layers, markers }: MapViewProps) {
         inStyle.current = Object.fromEntries(
           DATA_LAYERS.map(({ id }) => [id, layersRef.current[id]]),
         );
-        return withOverlay(next, overlayData.current, overlayState());
+        return withOverlay(next, overlayData.current, overlayState(highlightIdsRef.current));
       },
       bounds: data.manifest.bbox,
       fitBoundsOptions: { padding: FIT_PADDING },
@@ -275,11 +291,13 @@ export function MapView({ data, layers, markers }: MapViewProps) {
       const at: [number, number] =
         target.type === 'marker'
           ? [target.marker.lng, target.marker.lat]
-          : [target.lng, target.lat];
+          : target.type === 'point'
+            ? [target.pin.lng, target.pin.lat]
+            : [target.lng, target.lat];
       const p = new Popup({
         maxWidth: '300px',
         focusAfterOpen: false,
-        offset: target.type === 'marker' ? 28 : 10,
+        offset: target.type === 'place' ? 10 : 28,
       })
         .setLngLat(at)
         .setDOMContent(node)
@@ -318,9 +336,16 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (map?.getLayer(LAYERS.fill)) {
-      applyOverlayState(map, { theme, labelSize, selectedCountyId, layers: visible, streetLabels });
+      applyOverlayState(map, {
+        theme,
+        labelSize,
+        selectedCountyId,
+        layers: visible,
+        streetLabels,
+        highlightIds,
+      });
     }
-  }, [theme, labelSize, selectedCountyId, visible, streetLabels]);
+  }, [theme, labelSize, selectedCountyId, visible, streetLabels, highlightIds]);
 
   // Layer data: push each layer's features into its source when they change.
   useEffect(() => {
@@ -378,7 +403,7 @@ export function MapView({ data, layers, markers }: MapViewProps) {
         });
       }
     }
-    if (openedFor.current === focus.nonce) return;
+    if (openedFor.current === focus.nonce || focus.popup === false) return;
     if (focus.id.startsWith('marker:')) {
       const marker = markers.find((m) => markerFeatureId(m.id) === focus.id);
       if (!marker) return;
@@ -401,6 +426,40 @@ export function MapView({ data, layers, markers }: MapViewProps) {
       lat: focus.lat,
     });
   }, [data, focus, markers, layers]);
+
+  // A searched coordinate or address: drop a pin, fly there and open its popup.
+  const pinMarker = useRef<MapMarker | null>(null);
+  const pinShown = useRef(0);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!pin) {
+      pinMarker.current?.remove();
+      pinMarker.current = null;
+      pinShown.current = 0;
+      return;
+    }
+    if (pinShown.current === pin.nonce) return;
+    pinShown.current = pin.nonce;
+    const target = (p: PointPin) => ({
+      type: 'point' as const,
+      pin: p,
+      county: countyContaining(data, p.lng, p.lat),
+    });
+    pinMarker.current?.remove();
+    const marker = new MapMarker({ color: HIGHLIGHT_COLOR })
+      .setLngLat([pin.lng, pin.lat])
+      .addTo(map);
+    const el = marker.getElement();
+    el.setAttribute('aria-label', pin.title);
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPopupRef.current?.(target(pin));
+    });
+    pinMarker.current = marker;
+    map.flyTo({ center: [pin.lng, pin.lat], zoom: Math.max(map.getZoom(), 15), duration: 900 });
+    showPopupRef.current?.(target(pin));
+  }, [data, pin]);
 
   // Esc closes an open popup before it does anything else (App's handler backs out of the county).
   useEffect(() => {

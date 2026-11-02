@@ -16,7 +16,7 @@ const boundary = {
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
 const data = { boundary, layers: {}, markers: empty };
-const base = { layers: defaultLayers(), streetLabels: true };
+const base = { layers: defaultLayers(), streetLabels: true, highlightIds: [] };
 
 const basemap: StyleSpecification = {
   version: 8,

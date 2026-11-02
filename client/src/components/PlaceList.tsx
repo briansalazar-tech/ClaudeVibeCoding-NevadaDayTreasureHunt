@@ -3,6 +3,7 @@ import {
   kindLabel,
   layerName,
   markerFeatureId,
+  placeItems,
   statusName,
   type CountyId,
   type DataLayerId,
@@ -10,11 +11,11 @@ import {
   type Manifest,
   type Marker,
   type PlaceFeature,
+  type PlaceItem,
   type UnlocatedPlace,
 } from '@hunt/shared';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { useUnlocated } from '../layerData';
-import { placeItems, type PlaceItem } from './placeItems';
 import { useHuntStore } from '../state/store';
 
 function matches(text: string, query: string): boolean {

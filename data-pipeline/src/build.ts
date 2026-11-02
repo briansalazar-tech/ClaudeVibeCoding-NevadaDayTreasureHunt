@@ -11,14 +11,17 @@ import {
   layerFile,
   packLayerFile,
   PAST_FINDS,
+  searchFile,
   unlocatedFile,
   type Manifest,
+  type SearchFileData,
 } from '@hunt/shared';
 import { buildCountyLayers } from './build-county.js';
 import { parseArgs } from './lib/args.js';
 import { readCountyAreas } from './lib/counties.js';
 import { readManifest, writeJson, writeManifest } from './lib/manifest.js';
 import { OUT_DIR } from './lib/paths.js';
+import { searchEntries } from './search-index.js';
 import { COUNTY_PARK_SOURCES, PARCEL_PARKS, SOURCES } from './sources.js';
 import { buildBoundaries } from './steps/boundaries.js';
 import { readCountyParks } from './steps/county-parks.js';
@@ -103,9 +106,15 @@ if (args.counties.length) {
     }
     await writeJson(unlocatedFile(id), result.unlocated, { pretty: true });
     console.log(`  not on the map    ${String(result.unlocated.length).padStart(6)}`);
+    const search: SearchFileData = { county: id, entries: searchEntries(result.layers, id) };
+    const searchBytes = await writeJson(searchFile(id), search);
+    console.log(
+      `  search index     ${String(search.entries.length).padStart(6)} entries   ${Math.round(searchBytes / 1024)} KB`,
+    );
     counties[id] = {
       layers,
       unlocated: result.unlocated.length,
+      search: search.entries.length,
       buildDate: new Date().toISOString(),
     };
   }

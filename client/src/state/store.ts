@@ -1,4 +1,4 @@
-import { COUNTIES, LAYERS, type CountyId, type LayerId } from '@hunt/shared';
+import { COUNTIES, LAYERS, type BBox, type CountyId, type LayerId } from '@hunt/shared';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BasemapId } from '../map/basemaps';
@@ -26,8 +26,43 @@ export interface FocusRequest {
   lat: number;
   /** Fly to these bounds instead of the point (lines and polygons). */
   bbox?: [number, number, number, number];
+  /** False to only fly there (a route spanning several counties has no single popup). */
+  popup?: boolean;
   /** Changes on every request, so asking for the same feature twice still flies there. */
   nonce: number;
+}
+
+/** A named place at or near a pinned point, from the search index. */
+export interface NearbyItem {
+  id: string;
+  name: string;
+  layer: LayerId;
+  kind: string;
+  lng: number;
+  lat: number;
+  bbox?: BBox;
+  /** Meters away; 0 when the point is inside it. */
+  meters: number;
+}
+
+/** A searched coordinate or address: a pin on the map with its own popup. */
+export interface PointPin {
+  lng: number;
+  lat: number;
+  title: string;
+  subtitle: string;
+  /** Shown in the popup, e.g. for a point outside the hunt counties. */
+  warning?: string;
+  nearby: NearbyItem[];
+  nonce: number;
+}
+
+/** Roads picked in search, drawn highlighted: a route number, or a street by name. */
+export interface RoadHighlight {
+  counties: CountyId[];
+  routes?: string[];
+  name?: string;
+  kind?: string;
 }
 
 /** The map view, kept in the store so the data loader knows which heavy files are needed. */
@@ -51,6 +86,8 @@ export interface HuntState extends Settings {
   focus: FocusRequest | null;
   view: MapView | null;
   markerEditor: MarkerEditor;
+  pin: PointPin | null;
+  highlight: RoadHighlight | null;
   selectCounty: (id: CountyId | null) => void;
   /** ‹ › buttons. From the all-counties view, › goes to the first county and ‹ to the last. */
   stepCounty: (direction: 1 | -1) => void;
@@ -66,6 +103,10 @@ export interface HuntState extends Settings {
   focusFeature: (request: Omit<FocusRequest, 'nonce'>) => void;
   setView: (view: MapView) => void;
   setMarkerEditor: (editor: MarkerEditor) => void;
+  showPoint: (pin: Omit<PointPin, 'nonce'>) => void;
+  setHighlight: (highlight: RoadHighlight | null) => void;
+  /** Clears the search pin and road highlight. */
+  clearSearch: () => void;
 }
 
 function systemTheme(): Theme {
@@ -93,6 +134,8 @@ export const useHuntStore = create<HuntState>()(
       focus: null,
       view: null,
       markerEditor: null,
+      pin: null,
+      highlight: null,
       basemap: 'streets',
       theme: systemTheme(),
       labelSize: 'M',
@@ -132,6 +175,9 @@ export const useHuntStore = create<HuntState>()(
       },
       setView: (view) => set({ view }),
       setMarkerEditor: (markerEditor) => set({ markerEditor }),
+      showPoint: (pin) => set({ pin: { ...pin, nonce: ++nonce } }),
+      setHighlight: (highlight) => set({ highlight }),
+      clearSearch: () => set({ pin: null, highlight: null }),
     }),
     {
       name: 'hunt-map-settings',

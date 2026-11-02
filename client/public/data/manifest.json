@@ -1,5 +1,5 @@
 {
-  "buildDate": "2026-11-01T01:26:40.185Z",
+  "buildDate": "2026-11-01T04:17:13.920Z",
   "bbox": [
     -120.00645,
     37.8937,
@@ -166,7 +166,8 @@
         }
       },
       "unlocated": 3,
-      "buildDate": "2026-11-01T01:25:51.500Z"
+      "search": 1595,
+      "buildDate": "2026-11-01T04:16:23.291Z"
     },
     "churchill": {
       "layers": {
@@ -224,7 +225,8 @@
         }
       },
       "unlocated": 12,
-      "buildDate": "2026-11-01T01:26:01.419Z"
+      "search": 1572,
+      "buildDate": "2026-11-01T04:16:33.641Z"
     },
     "douglas": {
       "layers": {
@@ -282,7 +284,8 @@
         }
       },
       "unlocated": 9,
-      "buildDate": "2026-11-01T01:26:05.455Z"
+      "search": 2300,
+      "buildDate": "2026-11-01T04:16:37.817Z"
     },
     "lyon": {
       "layers": {
@@ -340,7 +343,8 @@
         }
       },
       "unlocated": 7,
-      "buildDate": "2026-11-01T01:26:15.682Z"
+      "search": 2535,
+      "buildDate": "2026-11-01T04:16:48.317Z"
     },
     "mineral": {
       "layers": {
@@ -398,7 +402,8 @@
         }
       },
       "unlocated": 2,
-      "buildDate": "2026-11-01T01:26:19.179Z"
+      "search": 1556,
+      "buildDate": "2026-11-01T04:16:51.882Z"
     },
     "pershing": {
       "layers": {
@@ -456,7 +461,8 @@
         }
       },
       "unlocated": 5,
-      "buildDate": "2026-11-01T01:26:23.125Z"
+      "search": 1509,
+      "buildDate": "2026-11-01T04:16:55.882Z"
     },
     "storey": {
       "layers": {
@@ -514,7 +520,8 @@
         }
       },
       "unlocated": 1,
-      "buildDate": "2026-11-01T01:26:26.541Z"
+      "search": 581,
+      "buildDate": "2026-11-01T04:16:59.333Z"
     },
     "washoe": {
       "layers": {
@@ -572,7 +579,8 @@
         }
       },
       "unlocated": 23,
-      "buildDate": "2026-11-01T01:26:40.185Z"
+      "search": 12251,
+      "buildDate": "2026-11-01T04:17:13.920Z"
     }
   }
 }
