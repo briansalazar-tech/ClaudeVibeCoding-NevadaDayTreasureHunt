@@ -6,7 +6,8 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { config } from '../config.js';
 import * as schema from './schema.js';
 
-export type Db = BetterSQLite3Database<typeof schema>;
+/** Drizzle over better-sqlite3; `$client` is the raw connection (for SQLite's online backup). */
+export type Db = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 /**
  * Opens (creating if needed) the SQLite database and applies any pending migrations.

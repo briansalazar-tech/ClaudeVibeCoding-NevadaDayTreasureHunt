@@ -9,6 +9,8 @@
   --accent-text: #ffffff;
   --shadow: 0 2px 10px rgb(15 23 42 / 18%);
   --panel-width: 360px;
+  /* Notebook pins and "on map" marks (the map draws notebook pages in this blue). */
+  --notebook: #2563eb;
 
   color-scheme: light;
   font-family:
@@ -33,6 +35,7 @@
   --accent: #4da3ff;
   --accent-text: #0b1220;
   --shadow: 0 2px 10px rgb(0 0 0 / 50%);
+  --notebook: #60a5fa;
 
   color-scheme: dark;
 }
@@ -1047,5 +1050,656 @@ a {
 
   .tabs {
     padding: 6px 16px;
+  }
+}
+
+/* ---------- Notebook ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.small-button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.small-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+a.small-button,
+label.small-button {
+  display: inline-block;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Side by side: the panel widens for writing, the map stays live beside it. */
+.app[data-panel='notebook'] {
+  --panel-width: min(540px, 46vw);
+}
+
+/* The separate Notebook view: no map, the notebook fills the window. */
+.app[data-notebook-full='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app[data-notebook-full='true'] .panel {
+  border-left: 0;
+}
+
+.county-nav[hidden] {
+  display: none;
+}
+
+.app[data-notebook-full='true'] .panel-header,
+.app[data-notebook-full='true'] .tabs,
+.app[data-notebook-full='true'] .notebook {
+  width: 100%;
+  max-width: 860px;
+  margin-inline: auto;
+}
+
+.notebook {
+  padding-top: 12px;
+}
+
+.nb-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.nb-toolbar-title {
+  font-size: 1.05rem;
+}
+
+.nb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.nb-grow {
+  flex: 1;
+}
+
+.nb-actions {
+  margin-bottom: 0;
+}
+
+.nb-home {
+  display: grid;
+  gap: 10px;
+}
+
+.nb-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.nb-filter button {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.nb-filter button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.nb-page-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nb-page-list button {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--bg-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nb-page-list button:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.nb-page-list-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.nb-on-map {
+  font-weight: 400;
+  color: var(--notebook);
+}
+
+.nb-page-list-snippet,
+.nb-page-list .muted {
+  font-size: 0.82rem;
+}
+
+.nb-page-list-snippet {
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nb-home-footer {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.nb-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.nb-new {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nb-new .text-input:first-child {
+  flex: 1 1 180px;
+}
+
+.nb-select {
+  width: auto;
+  padding: 4px 8px;
+}
+
+.nb-restore {
+  flex-basis: 100%;
+  padding: 10px;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+}
+
+.nb-restore p {
+  margin: 0 0 8px;
+}
+
+/* A page */
+
+.nb-title {
+  width: 100%;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.nb-title:hover,
+.nb-title:focus {
+  border-color: var(--border);
+  outline: none;
+}
+
+.nb-title-note {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+
+.nb-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.nb-source {
+  display: flex;
+  flex: 1 1 220px;
+  gap: 6px;
+}
+
+.nb-source .text-input {
+  padding: 4px 8px;
+}
+
+.nb-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.nb-section-title {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.nb-section p {
+  margin: 4px 0;
+}
+
+.nb-save-state {
+  font-size: 0.85rem;
+}
+
+.nb-body {
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+
+.nb-heading {
+  margin: 10px 0 4px;
+}
+
+h3.nb-heading {
+  font-size: 1.1rem;
+}
+
+h4.nb-heading {
+  font-size: 1rem;
+}
+
+h5.nb-heading {
+  font-size: 0.95rem;
+}
+
+.nb-para {
+  margin: 4px 0;
+}
+
+.nb-quote {
+  margin: 6px 0;
+  padding: 2px 10px;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.nb-bullet {
+  position: relative;
+  padding: 1px 0 1px 16px;
+}
+
+.nb-bullet::before {
+  position: absolute;
+  top: 0.65em;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  content: '';
+}
+
+.nb-blank {
+  height: 0.5em;
+}
+
+.nb-body a,
+.popup a {
+  color: var(--accent);
+}
+
+.nb-link-wrap {
+  white-space: nowrap;
+}
+
+.nb-link,
+.nb-tag {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: normal;
+}
+
+.nb-link {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+/* A link to a page that doesn't exist yet: made on first click. */
+.nb-link[data-new] {
+  text-decoration-style: dashed;
+}
+
+.nb-tag {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--bg-muted);
+  font-size: 0.9em;
+}
+
+.nb-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 2px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--notebook);
+  vertical-align: -1px;
+  cursor: pointer;
+}
+
+.nb-pin:hover {
+  background: var(--bg-hover);
+}
+
+.nb-pin-count {
+  font-size: 0.7rem;
+}
+
+.nb-editor {
+  position: relative;
+}
+
+.nb-textarea {
+  display: block;
+  min-height: 8em;
+  resize: vertical;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.nb-suggest {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  max-height: 260px;
+  margin: 2px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  list-style: none;
+}
+
+.nb-suggest button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nb-suggest button[aria-selected='true'],
+.nb-suggest button:hover {
+  background: var(--bg-hover);
+}
+
+.nb-suggest .muted {
+  flex: none;
+  font-size: 0.8rem;
+}
+
+.nb-place p {
+  margin: 0 0 6px;
+}
+
+.nb-matches {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nb-matches li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+  font-size: 0.88rem;
+}
+
+.nb-spot {
+  margin-top: 10px;
+}
+
+.nb-refs {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nb-ref-title {
+  text-align: left;
+}
+
+.nb-ref-head {
+  justify-content: space-between;
+}
+
+.nb-snippet {
+  margin: 2px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+/* Photos */
+
+.nb-photos {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.nb-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nb-photos.compact .nb-photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+
+.nb-photo-grid li {
+  position: relative;
+}
+
+.nb-photo-grid img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--bg-muted);
+}
+
+.nb-photo-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nb-photo-confirm {
+  position: absolute;
+  inset: auto 2px 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+/* Capture */
+
+.nb-capture {
+  display: grid;
+  gap: 10px;
+}
+
+.nb-capture h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.field .text-input {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.nb-found {
+  display: grid;
+  gap: 2px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.nb-found label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+
+.nb-found label:hover {
+  background: var(--bg-hover);
+}
+
+.nb-found .muted {
+  font-size: 0.8rem;
+}
+
+/* In a place's popup */
+
+/* Under half the map's height, so a tall popup fits above or below its point and scrolls. */
+.maplibregl-popup-content {
+  max-height: min(45dvh, 480px);
+  overflow-y: auto;
+}
+
+.popup-notebook {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.popup-notebook > p {
+  margin: 0;
+}
+
+.popup-note {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+}
+
+.popup-note .nb-body {
+  margin: 0;
+}
+
+.popup-note-actions {
+  display: flex;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+
+.popup-note-form {
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .app[data-panel='notebook'] .panel[data-sheet-open='true'] {
+    max-height: 62dvh;
+  }
+
+  /* The full notebook view on a phone: the whole screen, and no sheet to hide. */
+  .app[data-notebook-full='true'] .panel[data-sheet-open] {
+    flex: 1;
+    max-height: none;
+  }
+
+  .app[data-notebook-full='true'] .panel .panel-body {
+    display: block;
+  }
+
+  .app[data-notebook-full='true'] .sheet-toggle {
+    display: none;
   }
 }

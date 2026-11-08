@@ -21,6 +21,8 @@ function makeGeocoder(): Geocoder | undefined {
 const app = createApp(db, {
   clientDist: serveClient ? config.clientDist : undefined,
   geocoder: makeGeocoder(),
+  uploadsDir: config.uploadsDir,
+  backupDir: path.join(path.dirname(config.databasePath), 'backups'),
 });
 
 const server = app.listen(config.port, config.host, () => {

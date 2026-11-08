@@ -47,6 +47,7 @@ describe('hunt store', () => {
       'basemap',
       'labelSize',
       'layers',
+      'notebookOutlines',
       'streetLabels',
       'theme',
     ]);

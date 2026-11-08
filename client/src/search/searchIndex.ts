@@ -9,7 +9,9 @@ import {
   type CountyId,
   type DataLayerId,
   type Marker,
+  type Page,
   type ParsedCoordinates,
+  type PlaceNote,
   type SearchEntry,
   type SearchFileData,
 } from '@hunt/shared';
@@ -72,7 +74,9 @@ export type SearchHit =
       bbox: BBox;
       alt: string;
     }
-  | { type: 'marker'; key: string; marker: Marker; county: CountyId | null };
+  | { type: 'marker'; key: string; marker: Marker; county: CountyId | null }
+  | { type: 'page'; key: string; page: Page; county: CountyId | null }
+  | { type: 'note'; key: string; note: PlaceNote; county: CountyId | null };
 
 export interface CoordinateHit extends ParsedCoordinates {
   county: CountyId | null;
@@ -94,6 +98,9 @@ export interface SearchOptions {
   county: CountyId | null;
   countyAt: (lng: number, lat: number) => CountyId | null;
   limit?: number;
+  /** Notebook pages and notes on map places, searched by title and text like markers. */
+  pages?: readonly Page[];
+  notes?: readonly PlaceNote[];
 }
 
 /** Small nudges so towns and parks rank above a street of the same name. */
@@ -141,12 +148,9 @@ function markerHits(
   query: string,
   { county, countyAt }: SearchOptions,
 ): SearchHit[] {
-  const words = query.split(/\s+/).map(normalizeTerm).filter(Boolean) as string[];
+  const q = words(query);
   return markers
-    .filter((m) => {
-      const text = normalizeTerm(`${m.name} ${m.description}`) ?? '';
-      return words.every((w) => text.includes(w));
-    })
+    .filter((m) => matchesAll(`${m.name} ${m.description}`, q))
     .map((m) => ({ marker: m, county: countyAt(m.lng, m.lat) }))
     .filter((m) => !county || m.county === county)
     .map(({ marker, county: c }) => ({
@@ -155,6 +159,41 @@ function markerHits(
       marker,
       county: c,
     }));
+}
+
+function words(query: string): string[] {
+  return query.split(/\s+/).map(normalizeTerm).filter(Boolean) as string[];
+}
+
+function matchesAll(text: string, query: string[]): boolean {
+  const t = normalizeTerm(text) ?? '';
+  return query.every((w) => t.includes(w));
+}
+
+/**
+ * Pages and notes that contain every word. A county-scoped search only finds the ones on the
+ * map in that county (a page's place or spot, a note's place).
+ */
+function notebookHits(query: string, { county, countyAt, pages = [], notes = [] }: SearchOptions) {
+  const q = words(query);
+  const hits: SearchHit[] = [];
+  for (const page of pages) {
+    if (!matchesAll(`${page.title} ${page.body}`, q)) continue;
+    const at = page.place ?? page.spot;
+    const c = at ? countyAt(at.lng, at.lat) : null;
+    if (county && c !== county) continue;
+    hits.push({ type: 'page', key: `page|${page.id}`, page, county: c });
+  }
+  for (const note of notes) {
+    if (!matchesAll(`${note.place.name} ${note.body}`, q)) continue;
+    const c = countyAt(note.place.lng, note.place.lat);
+    if (county && c !== county) continue;
+    hits.push({ type: 'note', key: `note|${note.id}`, note, county: c });
+  }
+  // A page whose title matches comes before one that only mentions the words.
+  const titled = (h: SearchHit) =>
+    h.type === 'page' && matchesAll(h.page.title, q) ? 0 : h.type === 'page' ? 1 : 2;
+  return hits.sort((a, b) => titled(a) - titled(b));
 }
 
 function routeSearch(index: PlaceIndex, routes: string[], county: CountyId | null) {
@@ -197,7 +236,7 @@ export function searchPlaces(
     };
   }
   const addressLike = /^\d+[a-z]?\s+[a-z]/i.test(query);
-  const mine = markerHits(markers, query, options);
+  const mine = [...markerHits(markers, query, options), ...notebookHits(query, options)];
   if (!index) return { ...EMPTY, hits: mine, addressLike };
 
   const routes = parseRouteQuery(query);

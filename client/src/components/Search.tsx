@@ -4,6 +4,7 @@ import {
   kindLabel,
   layerName,
   markerFeatureId,
+  pageTypeName,
   statusName,
   type CountyId,
   type GeocodeResult,
@@ -12,6 +13,8 @@ import {
 } from '@hunt/shared';
 import { useDeferredValue, useEffect, useMemo, useRef } from 'react';
 import { useGeocode } from '../api';
+import { useOptionalNotebook } from '../notebook/context';
+import { findEntry, goToPlace } from '../notebook/places';
 import {
   nearbyPlaces,
   searchPlaces,
@@ -21,21 +24,13 @@ import {
   type SearchHit,
 } from '../search/searchIndex';
 import { useSearchIndex } from '../search/useSearchIndex';
-import { useHuntStore, type NearbyItem } from '../state/store';
+import { isPhone, useHuntStore, type NearbyItem } from '../state/store';
 
 export const MIN_QUERY = 2;
 
 function countyName(id: CountyId | null): string {
   const county = id ? getCounty(id) : undefined;
   return county ? countyDisplayName(county) : 'Outside the hunt counties';
-}
-
-function isPhone(): boolean {
-  try {
-    return window.matchMedia('(max-width: 720px)').matches;
-  } catch {
-    return false;
-  }
 }
 
 function nearbyItems(index: PlaceIndex | null, lng: number, lat: number): NearbyItem[] {
@@ -154,7 +149,22 @@ interface SearchResultsProps {
   submitted: number;
 }
 
+function firstLine(text: string): string {
+  const line = text.split('\n').find((l) => l.trim()) ?? '';
+  return line
+    .replace(/^\s*([-*>]|#{1,3})\s+/, '')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .slice(0, 80);
+}
+
 function hitMeta(hit: SearchHit): string {
+  if (hit.type === 'page') {
+    const where = hit.county ? ` · ${countyName(hit.county)}` : '';
+    return `Notebook · ${pageTypeName(hit.page.type)}${where}`;
+  }
+  if (hit.type === 'note') {
+    return `Your note on ${hit.note.place.name} · ${countyName(hit.county)}`;
+  }
   if (hit.type === 'marker') {
     return `Your marker · ${statusName(hit.marker.status)} · ${countyName(hit.county)}`;
   }
@@ -172,7 +182,18 @@ function hitMeta(hit: SearchHit): string {
 }
 
 function hitName(hit: SearchHit): string {
-  return hit.type === 'marker' ? hit.marker.name : hit.type === 'route' ? hit.name : hit.entry.name;
+  switch (hit.type) {
+    case 'marker':
+      return hit.marker.name;
+    case 'route':
+      return hit.name;
+    case 'page':
+      return hit.page.title;
+    case 'note':
+      return firstLine(hit.note.body);
+    default:
+      return hit.entry.name;
+  }
 }
 
 export function SearchResults({
@@ -186,9 +207,18 @@ export function SearchResults({
 }: SearchResultsProps) {
   const deferred = useDeferredValue(query);
   const { index, loading, error } = useSearchIndex(manifest, true);
+  const notebook = useOptionalNotebook();
+  const pages = notebook?.pages;
+  const notes = notebook?.notes;
   const outcome = useMemo(
-    () => searchPlaces(index, markers, deferred, { county: scope, countyAt: countyOf }),
-    [index, markers, deferred, scope, countyOf],
+    () =>
+      searchPlaces(index, markers, deferred, {
+        county: scope,
+        countyAt: countyOf,
+        pages,
+        notes,
+      }),
+    [index, markers, deferred, scope, countyOf, pages, notes],
   );
   const geocode = useGeocode();
   const trimmed = query.trim();
@@ -221,6 +251,14 @@ export function SearchResults({
     const { focusFeature, setHighlight, clearSearch } = store.getState();
     if (hit.type === 'place') {
       pickEntry(hit.entry);
+    } else if (hit.type === 'page') {
+      store.getState().openPage(hit.page.id);
+    } else if (hit.type === 'note') {
+      const place = hit.note.place;
+      goToPlace(place, {
+        entry: notebook ? findEntry(notebook.names, place) : undefined,
+        county: hit.county,
+      });
     } else if (hit.type === 'marker') {
       arrive([hit.county]);
       clearSearch();

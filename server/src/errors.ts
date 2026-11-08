@@ -10,6 +10,13 @@ export class HttpError extends Error {
   }
 }
 
+/** A positive integer id from a URL, or a 404 naming what wasn't found. */
+export function parseId(raw: string, what: string): number {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id < 1) throw new HttpError(404, `${what} not found`);
+  return id;
+}
+
 /** Turns thrown errors into JSON: 400 for invalid input, the given status for HttpError, else 500. */
 export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
   if (err instanceof ZodError) {
