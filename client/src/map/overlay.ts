@@ -51,6 +51,7 @@ export interface OverlayData {
   boundary: BoundaryData;
   layers: Partial<Record<DataLayerId, FeatureCollection>>;
   markers: FeatureCollection;
+  notebook: FeatureCollection;
 }
 
 const PALETTE = {
@@ -196,7 +197,7 @@ export function withOverlay(
     sources: {
       ...style.sources,
       ...overlaySources(data.boundary),
-      ...dataSources(data.layers, data.markers),
+      ...dataSources(data.layers, data.markers, data.notebook),
     },
     layers: [...style.layers.filter((l) => !l.id.startsWith(PREFIX)), ...allOverlayLayers(state)],
   };

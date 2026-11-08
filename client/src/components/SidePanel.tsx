@@ -8,6 +8,7 @@ import {
 import { useState } from 'react';
 import type { BoundaryData } from '../data';
 import type { LoadedLayers } from '../layerData';
+import { Notebook } from '../notebook/Notebook';
 import { useHuntStore, type PanelTab } from '../state/store';
 import { DisplaySettings } from './DisplaySettings';
 import { squareMiles } from './format';
@@ -18,6 +19,7 @@ import { MIN_QUERY, SearchBox, SearchResults } from './Search';
 const TABS: { id: PanelTab; label: string }[] = [
   { id: 'county', label: 'County' },
   { id: 'layers', label: 'Layers' },
+  { id: 'notebook', label: 'Notebook' },
   { id: 'display', label: 'Display' },
 ];
 
@@ -49,6 +51,8 @@ export function SidePanel({
   const stepCounty = useHuntStore((s) => s.stepCounty);
   const setSheetOpen = useHuntStore((s) => s.setSheetOpen);
   const setPanelTab = useHuntStore((s) => s.setPanelTab);
+  // The full notebook view has no map, so no county to step through.
+  const notebookFull = useHuntStore((s) => s.notebookFull && s.panelTab === 'notebook');
 
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState(0);
@@ -85,7 +89,7 @@ export function SidePanel({
             {sheetOpen ? 'Hide' : 'Details'}
           </button>
         </div>
-        <nav className="county-nav" aria-label="Step through counties">
+        <nav className="county-nav" aria-label="Step through counties" hidden={notebookFull}>
           <button type="button" aria-label="Previous county" onClick={() => stepCounty(-1)}>
             ‹
           </button>
@@ -154,6 +158,7 @@ export function SidePanel({
           {panelTab === 'layers' && (
             <LayerPanel manifest={data.manifest} loaded={loaded} markers={markers} />
           )}
+          {panelTab === 'notebook' && <Notebook />}
           {panelTab === 'display' && <DisplaySettings />}
         </div>
       </div>

@@ -13,12 +13,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useDeleteMarker } from '../api';
 import { landOwnerAt } from '../layerData';
+import { Inline } from '../notebook/Markdown';
+import { PagePopup, PlaceNotebookSection } from '../notebook/PlaceNotebook';
 import { useHuntStore, type PointPin } from '../state/store';
 
 export type PopupTarget =
   | { type: 'place'; props: PlaceProperties; lng: number; lat: number }
   | { type: 'marker'; marker: Marker; county: CountyId | null }
-  | { type: 'point'; pin: PointPin; county: CountyId | null };
+  | { type: 'point'; pin: PointPin; county: CountyId | null }
+  | { type: 'page'; pageId: number; lng: number; lat: number };
 
 function formatCoord(n: number): string {
   return n.toFixed(5);
@@ -107,6 +110,7 @@ export function FeaturePopup({ target, manifest }: { target: PopupTarget; manife
     return <MarkerPopup marker={target.marker} county={target.county} manifest={manifest} />;
   if (target.type === 'point')
     return <PointPopup pin={target.pin} county={target.county} manifest={manifest} />;
+  if (target.type === 'page') return <PagePopup pageId={target.pageId} />;
   const { props, lat, lng } = target;
   const kind = props.layer === 'land' ? landKindName(props.kind) : kindLabel(props.kind);
   const surface =
@@ -128,6 +132,18 @@ export function FeaturePopup({ target, manifest }: { target: PopupTarget; manife
       <Coordinates lat={lat} lng={lng} />
       <LandOwner manifest={manifest} county={props.county as CountyId} lat={lat} lng={lng} />
       <Links lat={lat} lng={lng} props={props} />
+      {/* Notes and pages go on named places, at their representative point, not the click. */}
+      {props.layer !== 'land' && props.named && (
+        <PlaceNotebookSection
+          place={{
+            id: props.id,
+            layer: props.layer,
+            name: props.name,
+            lng: props.lng ?? lng,
+            lat: props.lat ?? lat,
+          }}
+        />
+      )}
       <p className="popup-source">Source: {props.source}</p>
     </div>
   );
@@ -152,7 +168,11 @@ function MarkerPopup({
       <p>
         <span className={`status-badge status-${marker.status}`}>{statusName(marker.status)}</span>
       </p>
-      {marker.description && <p className="popup-description">{marker.description}</p>}
+      {marker.description && (
+        <p className="popup-description">
+          <Inline text={marker.description} />
+        </p>
+      )}
       <Coordinates lat={marker.lat} lng={marker.lng} />
       <LandOwner manifest={manifest} county={county} lat={marker.lat} lng={marker.lng} />
       <Links lat={marker.lat} lng={marker.lng} />

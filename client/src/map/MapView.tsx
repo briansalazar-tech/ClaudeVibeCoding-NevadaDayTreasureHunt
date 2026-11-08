@@ -11,7 +11,7 @@ import {
   type PlaceFeature,
   type PlaceProperties,
 } from '@hunt/shared';
-import type { FeatureCollection } from 'geojson';
+import type { FeatureCollection, Point } from 'geojson';
 import {
   GeolocateControl,
   Map as MapLibreMap,
@@ -37,6 +37,8 @@ import {
   HIGHLIGHT_COLOR,
   MARKERS_LAYER,
   MARKERS_SOURCE,
+  NOTEBOOK_SOURCE,
+  NOTEBOOK_SPOTS_LAYER,
   dataSourceId,
 } from './dataLayers';
 import { FeaturePopup, type PopupTarget } from './FeaturePopup';
@@ -63,8 +65,17 @@ const OSM_ATTRIBUTION =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
 
 function overlayState(highlightIds: readonly string[]): OverlayState {
-  const { theme, labelSize, selectedCountyId, layers, streetLabels } = useHuntStore.getState();
-  return { theme, labelSize, selectedCountyId, layers, streetLabels, highlightIds };
+  const { theme, labelSize, selectedCountyId, layers, streetLabels, notebookOutlines } =
+    useHuntStore.getState();
+  return {
+    theme,
+    labelSize,
+    selectedCountyId,
+    layers,
+    streetLabels,
+    highlightIds,
+    notebookOutlines,
+  };
 }
 
 function countyAt(map: MapLibreMap, e: MapMouseEvent): CountyId | null {
@@ -132,9 +143,21 @@ interface MapViewProps {
   data: BoundaryData;
   layers: Record<DataLayerId, PlaceFeature[]>;
   markers: readonly Marker[];
+  /** Notebook rings and page icons (see notebookFeatures). */
+  notebook?: FeatureCollection;
+  /** "Put on map": the spot clicked for a page. */
+  onPlacePage?: (pageId: number, lng: number, lat: number) => void;
 }
 
-export function MapView({ data, layers, markers }: MapViewProps) {
+const NO_FEATURES: FeatureCollection = { type: 'FeatureCollection', features: [] };
+
+export function MapView({
+  data,
+  layers,
+  markers,
+  notebook = NO_FEATURES,
+  onPlacePage,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const popupRef = useRef<Popup | null>(null);
@@ -150,15 +173,19 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   const focus = useHuntStore((s) => s.focus);
   const pin = useHuntStore((s) => s.pin);
   const highlight = useHuntStore((s) => s.highlight);
-  const placing = useHuntStore((s) => s.markerEditor?.mode === 'placing');
+  const placing = useHuntStore((s) => s.markerEditor?.mode === 'placing' || s.placingPage !== null);
+  const notebookOutlines = useHuntStore((s) => s.notebookOutlines);
 
   // What the overlay draws, kept current for transformStyle (re-run on every basemap switch).
   const overlayData = useRef<OverlayData>({
     boundary: data,
     layers: {},
     markers: markersCollection([]),
+    notebook: NO_FEATURES,
   });
   const markersRef = useRef(markers);
+  const notebookRef = useRef(notebook);
+  const onPlacePageRef = useRef(onPlacePage);
   const layersRef = useRef(layers);
   const highlightIds = useMemo(
     () => highlightedStreetIds(layers.streets, highlight),
@@ -167,6 +194,8 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   const highlightIdsRef = useRef(highlightIds);
   useEffect(() => {
     markersRef.current = markers;
+    notebookRef.current = notebook;
+    onPlacePageRef.current = onPlacePage;
     layersRef.current = layers;
     highlightIdsRef.current = highlightIds;
   });
@@ -223,11 +252,12 @@ export function MapView({ data, layers, markers }: MapViewProps) {
       void map
         .getSource<GeoJSONSource>(MARKERS_SOURCE)
         ?.setData(markersCollection(markersRef.current));
+      void map.getSource<GeoJSONSource>(NOTEBOOK_SOURCE)?.setData(notebookRef.current);
     });
 
     map.on('mousemove', (e) => {
       const state = useHuntStore.getState();
-      if (state.markerEditor?.mode === 'placing') {
+      if (state.markerEditor?.mode === 'placing' || state.placingPage !== null) {
         map.getCanvas().style.cursor = 'crosshair';
         return;
       }
@@ -251,6 +281,12 @@ export function MapView({ data, layers, markers }: MapViewProps) {
         });
         return;
       }
+      // "Put on map": the click picks where the page goes.
+      if (state.placingPage !== null) {
+        onPlacePageRef.current?.(state.placingPage, e.lngLat.lng, e.lngLat.lat);
+        state.setPlacingPage(null);
+        return;
+      }
       const feature = featureAt(map, e);
       if (feature) {
         openPopupFor(feature, e.lngLat.lng, e.lngLat.lat);
@@ -267,6 +303,11 @@ export function MapView({ data, layers, markers }: MapViewProps) {
     });
 
     function openPopupFor(feature: MapGeoJSONFeature, clickLng: number, clickLat: number) {
+      if (feature.layer.id === NOTEBOOK_SPOTS_LAYER) {
+        const [lng, lat] = (feature.geometry as Point).coordinates as [number, number];
+        showPopup({ type: 'page', pageId: Number(feature.properties.pageId), lng, lat });
+        return;
+      }
       if (feature.layer.id === MARKERS_LAYER) {
         const marker = markersRef.current.find((m) => m.id === Number(feature.properties.markerId));
         if (marker)
@@ -297,7 +338,7 @@ export function MapView({ data, layers, markers }: MapViewProps) {
       const p = new Popup({
         maxWidth: '300px',
         focusAfterOpen: false,
-        offset: target.type === 'place' ? 10 : 28,
+        offset: target.type === 'place' || target.type === 'page' ? 12 : 28,
       })
         .setLngLat(at)
         .setDOMContent(node)
@@ -343,9 +384,15 @@ export function MapView({ data, layers, markers }: MapViewProps) {
         layers: visible,
         streetLabels,
         highlightIds,
+        notebookOutlines,
       });
     }
-  }, [theme, labelSize, selectedCountyId, visible, streetLabels, highlightIds]);
+  }, [theme, labelSize, selectedCountyId, visible, streetLabels, highlightIds, notebookOutlines]);
+
+  useEffect(() => {
+    overlayData.current = { ...overlayData.current, notebook };
+    void mapRef.current?.getSource<GeoJSONSource>(NOTEBOOK_SOURCE)?.setData(notebook);
+  }, [notebook]);
 
   // Layer data: push each layer's features into its source when they change.
   useEffect(() => {
@@ -404,6 +451,16 @@ export function MapView({ data, layers, markers }: MapViewProps) {
       }
     }
     if (openedFor.current === focus.nonce || focus.popup === false) return;
+    if (focus.id.startsWith('page:')) {
+      openedFor.current = focus.nonce;
+      showPopupRef.current?.({
+        type: 'page',
+        pageId: Number(focus.id.slice('page:'.length)),
+        lng: focus.lng,
+        lat: focus.lat,
+      });
+      return;
+    }
     if (focus.id.startsWith('marker:')) {
       const marker = markers.find((m) => markerFeatureId(m.id) === focus.id);
       if (!marker) return;
@@ -475,6 +532,8 @@ export function MapView({ data, layers, markers }: MapViewProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (map) map.getCanvas().style.cursor = placing ? 'crosshair' : '';
+    // Picking a spot: an open popup would only be in the way of the click.
+    if (placing) popupRef.current?.remove();
   }, [placing]);
 
   // Hover highlight, whether it came from the map or from the side panel list.

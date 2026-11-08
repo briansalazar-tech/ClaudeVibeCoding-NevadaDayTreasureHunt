@@ -120,13 +120,20 @@ const files = [
 const index = buildPlaceIndex(files);
 const all: SearchOptions = { county: null, countyAt: () => 'storey' };
 const names = (hits: ReturnType<typeof searchPlaces>['hits']) =>
-  hits.map((h) =>
-    h.type === 'place'
-      ? h.entry.name
-      : h.type === 'route'
-        ? `route ${h.name}`
-        : `marker ${h.marker.name}`,
-  );
+  hits.map((h) => {
+    switch (h.type) {
+      case 'place':
+        return h.entry.name;
+      case 'route':
+        return `route ${h.name}`;
+      case 'marker':
+        return `marker ${h.marker.name}`;
+      case 'page':
+        return `page ${h.page.title}`;
+      default:
+        return `note ${h.note.body}`;
+    }
+  });
 
 describe('searchPlaces', () => {
   it('finds a park and its markers by name, the exact name first and the street last', () => {

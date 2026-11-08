@@ -10,6 +10,16 @@ async function getSearchFile(county: CountyId): Promise<SearchFileData> {
   return (await res.json()) as SearchFileData;
 }
 
+/** The built index, shared by everything that uses it (search, the notebook): built once. */
+let built: { stamp: string; index: PlaceIndex } | null = null;
+
+function sharedIndex(stamp: string, files: SearchFileData[]): PlaceIndex | null {
+  if (built?.stamp === stamp) return built.index;
+  if (!files.length) return null;
+  built = { stamp, index: buildPlaceIndex(files) };
+  return built.index;
+}
+
 export interface SearchIndexState {
   index: PlaceIndex | null;
   loading: boolean;
@@ -38,8 +48,10 @@ export function useSearchIndex(manifest: Manifest, enabled: boolean): SearchInde
   const error = results.find((r) => r.error)?.error ?? null;
   const index = useMemo(() => {
     if (loading) return null;
-    const files = results.flatMap((r) => (r.data ? [r.data] : []));
-    return files.length ? buildPlaceIndex(files) : null;
+    return sharedIndex(
+      stamp,
+      results.flatMap((r) => (r.data ? [r.data] : [])),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- \`stamp\` stands in for \`results\`
   }, [stamp, loading]);
   return { index, loading, error };

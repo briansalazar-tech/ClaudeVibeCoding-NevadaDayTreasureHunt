@@ -15,6 +15,13 @@
       "when": 1793506674026,
       "tag": "0001_geocode_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793657539406,
+      "tag": "0002_notebook",
+      "breakpoints": true
     }
   ]
 }

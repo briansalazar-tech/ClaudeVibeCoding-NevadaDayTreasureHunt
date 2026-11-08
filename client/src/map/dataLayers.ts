@@ -24,6 +24,11 @@ export const dataSourceId = (layer: DataLayerId) => `hunt-data-${layer}`;
 export const MARKERS_SOURCE = 'hunt-custom-markers';
 export const MARKERS_LAYER = 'hunt-custom-markers';
 export const MARKERS_LABEL_LAYER = 'hunt-custom-markers-label';
+/** Notebook pages on the map: rings around places pages are about, icons for "Put on map". */
+export const NOTEBOOK_SOURCE = 'hunt-notebook';
+export const NOTEBOOK_RINGS_LAYER = 'hunt-notebook-rings';
+export const NOTEBOOK_SPOTS_LAYER = 'hunt-notebook-spots';
+export const NOTEBOOK_COLOR = '#2563eb';
 
 export interface DataLayerState {
   theme: Theme;
@@ -33,6 +38,8 @@ export interface DataLayerState {
   streetLabels: boolean;
   /** Street pieces picked in search, drawn with a glow under the streets. */
   highlightIds: readonly string[];
+  /** Rings around the places notebook pages are about. */
+  notebookOutlines: boolean;
 }
 
 export const LABEL_SCALE: Record<LabelSize, number> = { S: 0.8, M: 1, L: 1.25, XL: 1.5 };
@@ -216,6 +223,7 @@ function visibility(on: boolean): 'visible' | 'none' {
 export function dataSources(
   data: Partial<Record<DataLayerId, FeatureCollection>>,
   markers: FeatureCollection,
+  notebook: FeatureCollection,
 ): Record<string, SourceSpecification> {
   const sources: Record<string, SourceSpecification> = {};
   for (const { id } of DATA_LAYERS) {
@@ -227,6 +235,7 @@ export function dataSources(
     };
   }
   sources[MARKERS_SOURCE] = { type: 'geojson', data: markers, promoteId: 'id' };
+  sources[NOTEBOOK_SOURCE] = { type: 'geojson', data: notebook };
   return sources;
 }
 
@@ -602,6 +611,42 @@ export function dataLayersAbove(state: DataLayerState): LayerSpecification[] {
     });
   }
 
+  // Notebook: a ring around each place a page is about, and an icon where a page was put.
+  out.push(
+    {
+      id: NOTEBOOK_RINGS_LAYER,
+      type: 'circle',
+      source: NOTEBOOK_SOURCE,
+      filter: ['==', ['get', 'kind'], 'place'],
+      layout: { visibility: visibility(state.notebookOutlines) },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 8, 14, 14],
+        'circle-color': 'rgba(0,0,0,0)',
+        'circle-stroke-color': NOTEBOOK_COLOR,
+        'circle-stroke-width': 2.5,
+        'circle-stroke-opacity': 0.9,
+      },
+    },
+    {
+      id: NOTEBOOK_SPOTS_LAYER,
+      type: 'symbol',
+      source: NOTEBOOK_SOURCE,
+      filter: ['==', ['get', 'kind'], 'spot'],
+      layout: {
+        'icon-image': `hunt-icon:page:${NOTEBOOK_COLOR}:22`,
+        'icon-allow-overlap': true,
+        'text-field': ['get', 'name'],
+        'text-font': LABEL_FONT,
+        'text-size': textSize(scale, 12),
+        'text-offset': [0, 1.1],
+        'text-anchor': 'top',
+        'text-max-width': 9,
+        'text-optional': true,
+      },
+      paint: { 'text-color': NOTEBOOK_COLOR, 'text-halo-color': halo, 'text-halo-width': 1.8 },
+    },
+  );
+
   // Custom markers: pins colored by status, shown with the layer they're assigned to.
   const visibleLayers = Object.entries(on)
     .filter(([, v]) => v)
@@ -637,6 +682,7 @@ export function dataLayersAbove(state: DataLayerState): LayerSpecification[] {
 /** Layers the user can click for a popup, most specific first. */
 export const CLICKABLE_LAYERS = [
   MARKERS_LAYER,
+  NOTEBOOK_SPOTS_LAYER,
   'hunt-past-finds-points',
   'hunt-state-markers-points',
   'hunt-markers-points',

@@ -2,7 +2,7 @@ import type { GeocodeResponse, Marker, MarkerInput, MarkerPatch } from '@hunt/sh
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** The API is on the same origin by default (Vite forwards /api); VITE_API_URL points elsewhere. */
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+export const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(
@@ -13,7 +13,7 @@ export class ApiError extends Error {
   }
 }
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {

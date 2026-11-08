@@ -5,7 +5,7 @@ import type { BasemapId } from '../map/basemaps';
 
 export type Theme = 'light' | 'dark';
 export type LabelSize = 'S' | 'M' | 'L' | 'XL';
-export type PanelTab = 'county' | 'layers' | 'display';
+export type PanelTab = 'county' | 'layers' | 'notebook' | 'display';
 
 export interface Settings {
   basemap: BasemapId;
@@ -15,6 +15,8 @@ export interface Settings {
   layers: Record<LayerId, boolean>;
   /** Street name labels, toggled separately from the streets themselves. */
   streetLabels: boolean;
+  /** Pages about map places are outlined on the map (a toggle on the notebook home). */
+  notebookOutlines: boolean;
 }
 
 /** A request (from the place list, say) to fly to a feature and open its popup. */
@@ -88,6 +90,14 @@ export interface HuntState extends Settings {
   markerEditor: MarkerEditor;
   pin: PointPin | null;
   highlight: RoadHighlight | null;
+  /** The notebook page open in the Notebook tab, or null for the notebook home. */
+  notebookPage: number | null;
+  /** Pages opened before this one, for Back. */
+  notebookHistory: number[];
+  /** The notebook fills the window (the separate Notebook view); otherwise it's beside the map. */
+  notebookFull: boolean;
+  /** "Put on map": the page waiting for a click on the map. */
+  placingPage: number | null;
   selectCounty: (id: CountyId | null) => void;
   /** ‹ › buttons. From the all-counties view, › goes to the first county and ‹ to the last. */
   stepCounty: (direction: 1 | -1) => void;
@@ -107,6 +117,24 @@ export interface HuntState extends Settings {
   setHighlight: (highlight: RoadHighlight | null) => void;
   /** Clears the search pin and road highlight. */
   clearSearch: () => void;
+  /** Opens a notebook page (or the notebook home, for null) in the Notebook tab. */
+  openPage: (id: number | null) => void;
+  /** Back to the page before, or the notebook home. */
+  pageBack: () => void;
+  setNotebookFull: (full: boolean) => void;
+  setPlacingPage: (id: number | null) => void;
+  setNotebookOutlines: (on: boolean) => void;
+  /** Shows the map (leaving the full notebook view, closing the phone sheet) to fly somewhere. */
+  showMap: () => void;
+}
+
+/** The phone layout: the panel is a bottom sheet over the map. */
+export function isPhone(): boolean {
+  try {
+    return window.matchMedia('(max-width: 720px)').matches;
+  } catch {
+    return false;
+  }
 }
 
 function systemTheme(): Theme {
@@ -136,6 +164,11 @@ export const useHuntStore = create<HuntState>()(
       markerEditor: null,
       pin: null,
       highlight: null,
+      notebookPage: null,
+      notebookHistory: [],
+      notebookFull: false,
+      placingPage: null,
+      notebookOutlines: true,
       basemap: 'streets',
       theme: systemTheme(),
       labelSize: 'M',
@@ -178,17 +211,47 @@ export const useHuntStore = create<HuntState>()(
       showPoint: (pin) => set({ pin: { ...pin, nonce: ++nonce } }),
       setHighlight: (highlight) => set({ highlight }),
       clearSearch: () => set({ pin: null, highlight: null }),
+      openPage: (id) => {
+        const { notebookPage, notebookHistory } = get();
+        const history =
+          id === null
+            ? []
+            : notebookPage !== null && notebookPage !== id
+              ? [...notebookHistory, notebookPage].slice(-30)
+              : notebookHistory;
+        set({ notebookPage: id, notebookHistory: history, panelTab: 'notebook', sheetOpen: true });
+      },
+      pageBack: () => {
+        const history = [...get().notebookHistory];
+        set({ notebookPage: history.pop() ?? null, notebookHistory: history });
+      },
+      setNotebookFull: (notebookFull) => set({ notebookFull }),
+      setPlacingPage: (placingPage) =>
+        set(placingPage === null ? { placingPage } : { placingPage, notebookFull: false }),
+      setNotebookOutlines: (notebookOutlines) => set({ notebookOutlines }),
+      showMap: () => {
+        set({ notebookFull: false });
+        if (isPhone()) set({ sheetOpen: false });
+      },
     }),
     {
       name: 'hunt-map-settings',
       version: 2,
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ basemap, theme, labelSize, layers, streetLabels }): Settings => ({
+      partialize: ({
         basemap,
         theme,
         labelSize,
         layers,
         streetLabels,
+        notebookOutlines,
+      }): Settings => ({
+        basemap,
+        theme,
+        labelSize,
+        layers,
+        streetLabels,
+        notebookOutlines,
       }),
       // Version 1 saved only the display settings; layers added later default to on.
       migrate: (saved) => saved as Settings,

@@ -15,8 +15,13 @@ const boundary = {
 } satisfies BoundaryData;
 
 const empty: FeatureCollection = { type: 'FeatureCollection', features: [] };
-const data = { boundary, layers: {}, markers: empty };
-const base = { layers: defaultLayers(), streetLabels: true, highlightIds: [] };
+const data = { boundary, layers: {}, markers: empty, notebook: empty };
+const base = {
+  layers: defaultLayers(),
+  streetLabels: true,
+  highlightIds: [],
+  notebookOutlines: true,
+};
 
 const basemap: StyleSpecification = {
   version: 8,

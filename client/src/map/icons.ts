@@ -6,7 +6,7 @@ import type { Map as MapLibreMap } from 'maplibre-gl';
  * An icon id encodes its look: `hunt-icon:<shape>:<fill color>:<size in px>`.
  */
 export type IconShape =
-  'circle' | 'square' | 'diamond' | 'triangle' | 'star' | 'house' | 'pin' | 'ring';
+  'circle' | 'square' | 'diamond' | 'triangle' | 'star' | 'house' | 'pin' | 'ring' | 'page';
 
 const PREFIX = 'hunt-icon:';
 
@@ -62,6 +62,17 @@ function path(ctx: CanvasRenderingContext2D, shape: IconShape, s: number): void 
       ctx.lineTo(2, c - 1);
       ctx.closePath();
       break;
+    case 'page': {
+      // A sheet of paper with its top right corner folded.
+      const fold = s * 0.3;
+      ctx.moveTo(s * 0.18, 1.5);
+      ctx.lineTo(s * 0.82 - fold, 1.5);
+      ctx.lineTo(s * 0.82, 1.5 + fold);
+      ctx.lineTo(s * 0.82, s - 1.5);
+      ctx.lineTo(s * 0.18, s - 1.5);
+      ctx.closePath();
+      break;
+    }
     case 'pin':
       // A map pin: round head with a point at the bottom center (the icon anchors at the bottom).
       ctx.moveTo(c, s - 1);
@@ -91,6 +102,17 @@ export function drawIcon(id: string): ImageData | null {
   ctx.lineWidth = shape === 'ring' ? PIXEL_RATIO * 2.5 : PIXEL_RATIO * 1.25;
   ctx.strokeStyle = shape === 'ring' ? fill : '#ffffff';
   ctx.stroke();
+  if (shape === 'page') {
+    // Text lines on the page.
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = PIXEL_RATIO;
+    ctx.beginPath();
+    for (const y of [0.45, 0.6, 0.75]) {
+      ctx.moveTo(s * 0.3, s * y);
+      ctx.lineTo(s * 0.7, s * y);
+    }
+    ctx.stroke();
+  }
   if (shape === 'pin') {
     ctx.beginPath();
     ctx.arc(s / 2, s * 0.36, s * 0.13, 0, Math.PI * 2);

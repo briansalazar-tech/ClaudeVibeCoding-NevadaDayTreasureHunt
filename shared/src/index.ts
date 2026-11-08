@@ -5,6 +5,8 @@ export * from './geocode.js';
 export * from './land.js';
 export * from './layers.js';
 export * from './markers.js';
+export * from './notebook-text.js';
+export * from './notebook.js';
 export * from './past-finds.js';
 export * from './places.js';
 export * from './routes.js';
