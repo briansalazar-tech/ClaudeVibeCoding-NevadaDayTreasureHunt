@@ -5,6 +5,8 @@ export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** More fields for the JSON body, e.g. a `code` the client acts on. */
+    readonly extra: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -27,7 +29,7 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     return;
   }
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json({ ...err.extra, error: err.message });
     return;
   }
   // express.json() reports malformed JSON with a status on the error.

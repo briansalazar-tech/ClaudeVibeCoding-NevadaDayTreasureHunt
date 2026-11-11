@@ -27,6 +27,7 @@
     "test:watch": "vitest",
     "db:migrate": "npm run db:migrate --workspace server",
     "db:backup": "npm run db:backup --workspace server",
+    "auth:reset": "tsx server/src/auth/reset-cli.ts",
     "data:fetch": "tsx data-pipeline/src/fetch.ts",
     "data:build": "tsx data-pipeline/src/build.ts"
   },

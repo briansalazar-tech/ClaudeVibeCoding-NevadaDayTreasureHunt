@@ -8,9 +8,23 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** The whole error body: `code` says what the client should do (e.g. `page-changed`). */
+    readonly data: { code?: string; [key: string]: unknown } = {},
   ) {
     super(message);
   }
+
+  get code(): string | undefined {
+    return this.data.code;
+  }
+}
+
+/** Signed out (the session ended or expired), or must choose a new password first. */
+export function isAuthError(err: unknown): boolean {
+  return (
+    err instanceof ApiError &&
+    (err.status === 401 || (err.status === 403 && err.code === 'password-change-required'))
+  );
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -24,8 +38,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(0, 'Can’t reach the server. Is it running (npm run dev)?');
   }
   if (res.status === 204) return undefined as T;
-  const body = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) throw new ApiError(res.status, body.error ?? `Request failed (${res.status})`);
+  const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+  if (!res.ok) throw new ApiError(res.status, body.error ?? `Request failed (${res.status})`, body);
   return body as T;
 }
 

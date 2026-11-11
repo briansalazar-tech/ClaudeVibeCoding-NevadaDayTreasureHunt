@@ -181,6 +181,7 @@ describe('searchPlaces', () => {
       layer: 'custom',
       lat: 39.24,
       lng: -119.59,
+      createdBy: 1,
       createdAt: '',
       updatedAt: '',
     };

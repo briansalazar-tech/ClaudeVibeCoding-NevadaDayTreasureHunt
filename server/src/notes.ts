@@ -8,13 +8,16 @@ import {
   type PageType,
   type PlaceNotebook,
 } from '@hunt/shared';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
+import { assertCanEdit } from './auth/permissions.js';
+import { me } from './auth/sessions.js';
 import type { Db } from './db/client.js';
-import { pages, photos, placeNotes } from './db/schema.js';
+import { comments, pages, photos, placeNotes } from './db/schema.js';
 import { HttpError, parseId } from './errors.js';
 import {
+  deleteCommentsOn,
   getSource,
   indexLinks,
   removeLinks,
@@ -24,7 +27,13 @@ import {
   toPhoto,
 } from './notebook/sources.js';
 
-/** /api/notes: notes on map places. */
+function getNote(db: Db, id: number) {
+  const row = db.select().from(placeNotes).where(eq(placeNotes.id, id)).get();
+  if (!row) throw new HttpError(404, 'Note not found');
+  return row;
+}
+
+/** /api/notes: notes on map places and custom markers. */
 export function notesRouter(db: Db): Router {
   const router = Router();
 
@@ -51,6 +60,7 @@ export function notesRouter(db: Db): Router {
         placeLng: place.lng,
         placeLat: place.lat,
         body,
+        createdBy: me(req).id,
         createdAt: now,
         updatedAt: now,
       })
@@ -63,6 +73,7 @@ export function notesRouter(db: Db): Router {
   router.patch('/:id', (req, res) => {
     const id = parseId(req.params.id, 'Note');
     const { body } = notePatchSchema.parse(req.body);
+    assertCanEdit(me(req), getNote(db, id).createdBy, 'note');
     const row = db
       .update(placeNotes)
       .set({ body, updatedAt: new Date().toISOString() })
@@ -76,9 +87,12 @@ export function notesRouter(db: Db): Router {
 
   router.delete('/:id', (req, res) => {
     const id = parseId(req.params.id, 'Note');
-    const row = db.delete(placeNotes).where(eq(placeNotes.id, id)).returning().get();
-    if (!row) throw new HttpError(404, 'Note not found');
-    removeLinks(db, 'note', id);
+    assertCanEdit(me(req), getNote(db, id).createdBy, 'note');
+    db.transaction(() => {
+      db.delete(placeNotes).where(eq(placeNotes.id, id)).run();
+      removeLinks(db, 'note', id);
+      deleteCommentsOn(db, 'note', id);
+    });
     res.status(204).end();
   });
 
@@ -106,16 +120,27 @@ export function placesRouter(db: Db): Router {
           .map((s) => getSource(db, s.kind, s.id)?.source)
           .filter((s) => s !== undefined)
       : [];
+    const notes = db
+      .select()
+      .from(placeNotes)
+      .where(eq(placeNotes.placeId, id))
+      .orderBy(placeNotes.id)
+      .all()
+      .map(toNote);
+    const commentCounts: Record<number, number> = {};
+    for (const n of notes) {
+      const found = db
+        .select({ n: count() })
+        .from(comments)
+        .where(and(eq(comments.targetKind, 'note'), eq(comments.targetId, n.id)))
+        .get();
+      commentCounts[n.id] = found?.n ?? 0;
+    }
     const out: PlaceNotebook = {
       page: page ? { id: page.id, title: page.title, type: page.type as PageType } : null,
       mentions,
-      notes: db
-        .select()
-        .from(placeNotes)
-        .where(eq(placeNotes.placeId, id))
-        .orderBy(placeNotes.id)
-        .all()
-        .map(toNote),
+      notes,
+      commentCounts,
       photos: db
         .select()
         .from(photos)
@@ -137,8 +162,10 @@ export function referencesRouter(db: Db): Router {
     const { kind, id, title } = linkMentionsSchema.parse(req.body);
     const source = getSource(db, kind, id);
     if (!source) throw new HttpError(404, 'Not found');
+    const user = me(req);
+    assertCanEdit(user, source.source.createdBy, kind);
     const matches = findMentions(source.text, title);
-    if (matches.length) setSourceText(db, kind, id, linkMatches(source.text, matches));
+    if (matches.length) setSourceText(db, kind, id, linkMatches(source.text, matches), user.id);
     res.json({ linked: matches.length });
   });
   return router;

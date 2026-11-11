@@ -1,7 +1,9 @@
 import { pageTypeName, type PlaceNote, type PlaceRef } from '@hunt/shared';
 import { useState } from 'react';
+import { useCanEdit } from '../account/context';
 import { useHuntStore } from '../state/store';
 import { useDeleteNote, useOpenPage, usePlaceNotebook, useSaveNote, useSavePage } from './api';
+import { Byline, Comments } from './Comments';
 import { useNotebook } from './context';
 import { Editor } from './Editor';
 import { Inline, Markdown } from './Markdown';
@@ -57,6 +59,7 @@ export function PlaceNotebookSection({ place }: { place: PlaceRef }) {
                     className="link-button"
                     onClick={() => {
                       if (m.kind === 'page') openPage(m.id);
+                      else if (m.pageId) openPage(m.pageId);
                       else if (m.place)
                         goToPlace(m.place, {
                           entry: findEntry(names, m.place),
@@ -64,14 +67,18 @@ export function PlaceNotebookSection({ place }: { place: PlaceRef }) {
                         });
                     }}
                   >
-                    {m.kind === 'note' ? `note on ${m.title}` : m.title}
+                    {m.kind === 'note'
+                      ? `note on ${m.title}`
+                      : m.kind === 'comment'
+                        ? `comment on ${m.title}`
+                        : m.title}
                   </button>
                 </span>
               ))}
             </p>
           )}
           {data.notes.map((n) => (
-            <NoteItem key={n.id} note={n} />
+            <NoteItem key={n.id} note={n} comments={data.commentCounts[n.id] ?? 0} />
           ))}
           {adding ? (
             <NoteForm place={place} onDone={() => setAdding(false)} />
@@ -87,27 +94,47 @@ export function PlaceNotebookSection({ place }: { place: PlaceRef }) {
   );
 }
 
-function NoteItem({ note }: { note: PlaceNote }) {
+function NoteItem({ note, comments }: { note: PlaceNote; comments: number }) {
   const [editing, setEditing] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const canEdit = useCanEdit(note.createdBy);
   const remove = useDeleteNote();
   if (editing) return <NoteForm place={note.place} note={note} onDone={() => setEditing(false)} />;
   return (
     <div className="popup-note">
       <Markdown body={note.body} />
       <span className="popup-note-actions">
-        <span className="muted">{new Date(note.updatedAt).toLocaleDateString()}</span>
-        <button type="button" className="link-button" onClick={() => setEditing(true)}>
-          Edit
-        </button>
+        <span className="muted">
+          <Byline by={note.createdBy} at={note.createdAt} edited={note.updatedAt} />
+        </span>
         <button
           type="button"
           className="link-button"
-          disabled={remove.isPending}
-          onClick={() => remove.mutate(note.id)}
+          aria-expanded={showComments}
+          onClick={() => setShowComments(!showComments)}
         >
-          Delete
+          {comments ? `Comments (${comments})` : 'Comment'}
         </button>
+        {canEdit && (
+          <>
+            <button type="button" className="link-button" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+            <button
+              type="button"
+              className="link-button"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(note.id)}
+            >
+              Delete
+            </button>
+          </>
+        )}
       </span>
+      {remove.isError && <p className="form-error">{remove.error.message}</p>}
+      {showComments && (
+        <Comments targetKind="note" targetId={note.id} compact startAdding={comments === 0} />
+      )}
     </div>
   );
 }
@@ -159,6 +186,7 @@ export function PagePopup({ pageId }: { pageId: number }) {
   const openPage = useHuntStore((s) => s.openPage);
   const save = useSavePage();
   const page = pages.find((p) => p.id === pageId);
+  const canEdit = useCanEdit(page?.createdBy ?? null);
   if (!page) return <p className="muted">This page is gone.</p>;
   const lines = page.body
     .split('\n')
@@ -177,14 +205,17 @@ export function PagePopup({ pageId }: { pageId: number }) {
         <button type="button" className="small-button primary" onClick={() => openPage(page.id)}>
           Open page
         </button>
-        <button
-          type="button"
-          className="small-button"
-          onClick={() => save.mutate({ id: page.id, patch: { spot: null } })}
-        >
-          Remove from map
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            className="small-button"
+            onClick={() => save.mutate({ id: page.id, patch: { spot: null } })}
+          >
+            Remove from map
+          </button>
+        )}
       </div>
+      {save.isError && <p className="form-error">{save.error.message}</p>}
     </div>
   );
 }

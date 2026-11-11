@@ -6,6 +6,7 @@ import {
   type Marker,
 } from '@hunt/shared';
 import { useState } from 'react';
+import { AccountPanel } from '../account/AccountPanel';
 import type { BoundaryData } from '../data';
 import type { LoadedLayers } from '../layerData';
 import { Notebook } from '../notebook/Notebook';
@@ -21,6 +22,7 @@ const TABS: { id: PanelTab; label: string }[] = [
   { id: 'layers', label: 'Layers' },
   { id: 'notebook', label: 'Notebook' },
   { id: 'display', label: 'Display' },
+  { id: 'account', label: 'Account' },
 ];
 
 const NO_LAYERS: LoadedLayers = {
@@ -160,6 +162,7 @@ export function SidePanel({
           )}
           {panelTab === 'notebook' && <Notebook />}
           {panelTab === 'display' && <DisplaySettings />}
+          {panelTab === 'account' && <AccountPanel />}
         </div>
       </div>
     </aside>

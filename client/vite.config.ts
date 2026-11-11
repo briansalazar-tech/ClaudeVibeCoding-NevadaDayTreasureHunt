@@ -12,14 +12,19 @@ export default defineConfig(({ mode }) => {
   const host = env.CLIENT_HOST || undefined;
   // The client calls /api on its own origin and Vite forwards it to the API server, so a phone
   // on the same Wi-Fi reaches the API through the dev server too. VITE_API_URL overrides this.
-  const proxy = { '/api': `http://localhost:${Number(env.PORT) || 3001}` };
+  // The Host header passes through unchanged: the API refuses changes whose Origin doesn't match
+  // the host the browser sent them to.
+  const proxy = {
+    '/api': { target: `http://localhost:${Number(env.PORT) || 3001}`, changeOrigin: false },
+  };
   return {
     envDir,
     plugins: [react()],
     server: { port, host, proxy },
     preview: { port, host, proxy },
-    // MapLibre alone is about 1 MB minified.
-    build: { chunkSizeWarningLimit: 1600 },
+    // MapLibre alone is about 1 MB minified, and the password checker's dictionaries (a chunk of
+    // their own, loaded only on the screens that set a password) about 1.7 MB.
+    build: { chunkSizeWarningLimit: 1800 },
     test: {
       name: 'client',
       environment: 'jsdom',

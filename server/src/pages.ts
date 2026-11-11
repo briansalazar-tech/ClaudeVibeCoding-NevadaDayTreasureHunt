@@ -1,4 +1,5 @@
 import {
+  canEditContent,
   findMentions,
   findNames,
   linkMatches,
@@ -14,13 +15,16 @@ import {
   type Reference,
   type RenameResult,
 } from '@hunt/shared';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Router } from 'express';
+import { assertCanEdit } from './auth/permissions.js';
+import { me } from './auth/sessions.js';
 import type { Db } from './db/client.js';
 import { pages, type PageRow } from './db/schema.js';
 import { HttpError, parseId } from './errors.js';
 import {
   allSources,
+  deleteCommentsOn,
   getSource,
   indexLinks,
   placeColumns,
@@ -63,6 +67,7 @@ function insertPage(
   input: { title: string; type: string; body: string; sourceUrl: string },
   place: PlaceRef | null,
   spot: { lng: number; lat: number } | null,
+  by: number,
 ): PageRow {
   const now = new Date().toISOString();
   const row = db
@@ -76,6 +81,8 @@ function insertPage(
       ...placeColumns(place),
       spotLng: spot?.lng ?? null,
       spotLat: spot?.lat ?? null,
+      createdBy: by,
+      updatedBy: by,
       createdAt: now,
       updatedAt: now,
     })
@@ -96,12 +103,13 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
   router.post('/', (req, res) => {
     const input = pageInputSchema.parse(req.body);
     titleTaken(db, input.title);
-    res.status(201).json(toPage(insertPage(db, input, input.place, input.spot)));
+    res.status(201).json(toPage(insertPage(db, input, input.place, input.spot, me(req).id)));
   });
 
   // A link clicked, "Today", or "+ Notebook page for this place": the page by that name,
   // created if there's none yet.
   router.post('/open', (req, res) => {
+    const user = me(req);
     const { title, type, place } = openPageSchema.parse(req.body);
     const tied = place && db.select().from(pages).where(eq(pages.placeId, place.id)).get();
     if (tied) {
@@ -110,8 +118,9 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
     }
     const existing = findByKey(db, nameKey(title));
     if (existing && (!place || !existing.placeId || existing.placeId === place.id)) {
-      // A page about a place, opened from that place: tie it if it wasn't yet.
-      if (place && !existing.placeId) {
+      // A page about a place, opened from that place: tie it if it wasn't yet (and it's
+      // this user's to change).
+      if (place && !existing.placeId && canEditContent(user, existing.createdBy)) {
         db.update(pages).set(placeColumns(place)).where(eq(pages.id, existing.id)).run();
       }
       res.json(toPage(getRow(db, existing.id)));
@@ -125,6 +134,7 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
       { title: name, type: type ?? (place ? 'place' : 'note'), body: '', sourceUrl: '' },
       place ?? null,
       null,
+      user.id,
     );
     res.status(201).json(toPage(row));
   });
@@ -134,27 +144,36 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
   });
 
   router.patch('/:id', (req, res) => {
+    const user = me(req);
     const id = parseId(req.params.id, 'Page');
     const patch = pagePatchSchema.parse(req.body);
     const before = getRow(db, id);
+    assertCanEdit(user, before.createdBy, 'page');
+    // Text saved from an older version would wipe out someone else's newer edit.
+    if (patch.baseVersion !== undefined && patch.baseVersion !== before.version)
+      throw new HttpError(409, 'This page changed', { code: 'page-changed', page: toPage(before) });
     const renamed = patch.title !== undefined && patch.title !== before.title;
     if (renamed) titleTaken(db, patch.title!, id);
 
     const result = db.transaction((): RenameResult => {
-      const { place, spot, ...fields } = patch;
+      const { place, spot, baseVersion, ...fields } = patch;
+      const bodyChanged = fields.body !== undefined && fields.body !== before.body;
       db.update(pages)
         .set({
           ...fields,
           ...(fields.title !== undefined ? { titleKey: nameKey(fields.title) } : {}),
           ...(place !== undefined ? placeColumns(place) : {}),
           ...(spot !== undefined ? { spotLng: spot?.lng ?? null, spotLat: spot?.lat ?? null } : {}),
+          ...(bodyChanged ? { version: sql`${pages.version} + 1` } : {}),
+          updatedBy: user.id,
           updatedAt: new Date().toISOString(),
         })
         .where(eq(pages.id, id))
         .run();
       if (fields.body !== undefined) indexLinks(db, 'page', id, fields.body);
 
-      // Renaming points every link to the old title at the new one.
+      // Renaming points every link to the old title at the new one, in anyone's text: otherwise
+      // the rename would break their links.
       let relinked = 0;
       if (renamed) {
         for (const s of sourcesLinkingTo(db, before.titleKey)) {
@@ -162,7 +181,7 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
           if (!source) continue;
           const out = renameLinks(source.text, before.title, patch.title!);
           if (!out.count) continue;
-          setSourceText(db, s.kind, s.id, out.text);
+          setSourceText(db, s.kind, s.id, out.text, user.id);
           relinked += out.count;
         }
       }
@@ -173,10 +192,13 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
 
   router.delete('/:id', (req, res) => {
     const id = parseId(req.params.id, 'Page');
-    getRow(db, id);
+    assertCanEdit(me(req), getRow(db, id).createdBy, 'page');
     deletePhotoFiles(db, uploadsDir, { pageId: id });
-    db.delete(pages).where(eq(pages.id, id)).run();
-    removeLinks(db, 'page', id);
+    db.transaction(() => {
+      db.delete(pages).where(eq(pages.id, id)).run();
+      removeLinks(db, 'page', id);
+      deleteCommentsOn(db, 'page', id);
+    });
     res.status(204).end();
   });
 
@@ -210,10 +232,12 @@ export function pagesRouter(db: Db, uploadsDir: string): Router {
     const id = parseId(req.params.id, 'Page');
     const { names } = linkNamesSchema.parse(req.body);
     const page = getRow(db, id);
+    const user = me(req);
+    assertCanEdit(user, page.createdBy, 'page');
     const wanted = new Map(names.map((n): [string, string] => [nameKey(n), n]).filter(([k]) => k));
     // As capture found them: a one-word name only where it's capitalized.
     const matches = findNames(page.body, wanted, { capitalizedSingleWords: true });
-    if (matches.length) setSourceText(db, 'page', id, linkMatches(page.body, matches));
+    if (matches.length) setSourceText(db, 'page', id, linkMatches(page.body, matches), user.id);
     res.json({ page: toPage(getRow(db, id)), linked: matches.length });
   });
 

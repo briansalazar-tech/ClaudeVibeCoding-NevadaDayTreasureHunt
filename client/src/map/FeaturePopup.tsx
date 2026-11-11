@@ -3,6 +3,7 @@ import {
   kindLabel,
   landKindName,
   layerName,
+  markerFeatureId,
   statusName,
   type CountyId,
   type Manifest,
@@ -11,6 +12,7 @@ import {
 } from '@hunt/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useAuthorName, useCanEdit } from '../account/context';
 import { useDeleteMarker } from '../api';
 import { landOwnerAt } from '../layerData';
 import { Inline } from '../notebook/Markdown';
@@ -160,11 +162,16 @@ function MarkerPopup({
 }) {
   const setMarkerEditor = useHuntStore((s) => s.setMarkerEditor);
   const remove = useDeleteMarker();
+  const canEdit = useCanEdit(marker.createdBy);
+  const author = useAuthorName(marker.createdBy);
   const [confirming, setConfirming] = useState(false);
   return (
     <div className="popup">
       <h3>{marker.name}</h3>
-      <p className="popup-sub">Custom marker · {layerName(marker.layer)}</p>
+      <p className="popup-sub">
+        Custom marker · {layerName(marker.layer)}
+        {author && ` · added by ${author}`}
+      </p>
       <p>
         <span className={`status-badge status-${marker.status}`}>{statusName(marker.status)}</span>
       </p>
@@ -176,38 +183,49 @@ function MarkerPopup({
       <Coordinates lat={marker.lat} lng={marker.lng} />
       <LandOwner manifest={manifest} county={county} lat={marker.lat} lng={marker.lng} />
       <Links lat={marker.lat} lng={marker.lng} />
-      <div className="popup-actions">
-        {confirming ? (
-          <>
-            <span>Delete this marker?</span>
-            <button
-              type="button"
-              className="small-button danger"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(marker.id)}
-            >
-              Delete
-            </button>
-            <button type="button" className="small-button" onClick={() => setConfirming(false)}>
-              Keep
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="small-button"
-              onClick={() => setMarkerEditor({ mode: 'form', markerId: marker.id })}
-            >
-              Edit
-            </button>
-            <button type="button" className="small-button" onClick={() => setConfirming(true)}>
-              Delete…
-            </button>
-          </>
-        )}
-      </div>
+      {canEdit && (
+        <div className="popup-actions">
+          {confirming ? (
+            <>
+              <span>Delete this marker? Notes and photos on it stay in the notebook.</span>
+              <button
+                type="button"
+                className="small-button danger"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(marker.id)}
+              >
+                Delete
+              </button>
+              <button type="button" className="small-button" onClick={() => setConfirming(false)}>
+                Keep
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="small-button"
+                onClick={() => setMarkerEditor({ mode: 'form', markerId: marker.id })}
+              >
+                Edit
+              </button>
+              <button type="button" className="small-button" onClick={() => setConfirming(true)}>
+                Delete…
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {remove.isError && <p className="form-error">{remove.error.message}</p>}
+      <PlaceNotebookSection
+        place={{
+          id: markerFeatureId(marker.id),
+          layer: marker.layer,
+          name: marker.name,
+          lng: marker.lng,
+          lat: marker.lat,
+        }}
+      />
     </div>
   );
 }

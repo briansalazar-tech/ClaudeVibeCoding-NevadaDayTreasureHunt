@@ -163,10 +163,10 @@ function hitMeta(hit: SearchHit): string {
     return `Notebook · ${pageTypeName(hit.page.type)}${where}`;
   }
   if (hit.type === 'note') {
-    return `Your note on ${hit.note.place.name} · ${countyName(hit.county)}`;
+    return `Note on ${hit.note.place.name} · ${countyName(hit.county)}`;
   }
   if (hit.type === 'marker') {
-    return `Your marker · ${statusName(hit.marker.status)} · ${countyName(hit.county)}`;
+    return `Custom marker · ${statusName(hit.marker.status)} · ${countyName(hit.county)}`;
   }
   if (hit.type === 'route') {
     const counties = hit.entries.map((e) => getCounty(e.county)?.name).join(', ');

@@ -167,6 +167,7 @@ h2 {
 .panel-body {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0 16px 16px;
 }
@@ -359,16 +360,20 @@ h2 {
   top: 0;
   z-index: 1;
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin: 0 -16px;
-  padding: 8px 16px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 
+/* Five tabs share the 360px panel. */
 .tabs button {
-  flex: 1;
-  padding: 7px 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 7px 4px;
+  font-size: 0.9rem;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: 8px;
   background: none;
@@ -1676,8 +1681,14 @@ h5.nb-heading {
 
 .popup-note-actions {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
   font-size: 0.8rem;
+}
+
+.popup-note-actions > * {
+  white-space: nowrap;
 }
 
 .popup-note-form {
@@ -1701,5 +1712,284 @@ h5.nb-heading {
 
   .app[data-notebook-full='true'] .sheet-toggle {
     display: none;
+  }
+}
+
+/* Accounts: sign-in, setup and new-password screens */
+
+/* The hunt area from USGS Imagery Topo (public domain), dimmed a little so the card stands out. */
+.auth-page {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 100%;
+  padding: 24px 16px 8px;
+  place-items: start center;
+  background:
+    linear-gradient(rgb(15 23 42 / 0.25), rgb(15 23 42 / 0.45)),
+    url('/images/sign-in-background.jpg') center / cover no-repeat,
+    var(--bg-muted);
+}
+
+.auth-credit {
+  justify-self: end;
+  margin: 12px 0 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: 0.7rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 6vh;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+.auth-card h1 {
+  margin: 4px 0 14px;
+  font-size: 1.3rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form p {
+  margin: 0;
+}
+
+.auth-form > .small-button {
+  justify-self: start;
+  padding: 6px 16px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.field > span {
+  font-weight: 600;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.strength {
+  display: grid;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+
+.strength meter {
+  width: 100%;
+  height: 8px;
+}
+
+.strength-ok {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.strength-bad {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .strength-ok {
+  color: #4ade80;
+}
+
+:root[data-theme='dark'] .strength-bad {
+  color: #f87171;
+}
+
+/* The Account tab */
+
+.account-form {
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.temp-password {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+}
+
+.temp-password p {
+  margin: 0;
+}
+
+.temp-password .small-button {
+  justify-self: start;
+}
+
+.temp-password-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.temp-password-value code {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+.user-list,
+.audit-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-row {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.user-row p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.role-badge.role-super-admin,
+.role-badge.role-admin {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.audit-list li {
+  font-size: 0.85rem;
+}
+
+.inline-heading {
+  display: inline;
+}
+
+details > summary {
+  cursor: pointer;
+}
+
+/* Authors, comments, and edits that crossed */
+
+.nb-byline {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+}
+
+.nb-read-only {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.nb-comments {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.nb-comments.compact {
+  margin-top: 6px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+
+.nb-comment-list {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nb-comment {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+}
+
+.nb-comment .nb-body {
+  margin: 0;
+}
+
+.nb-comment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.nb-comment-form {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.nb-conflict {
+  margin: 8px 0;
+  padding: 10px;
+  border: 2px solid #d97706;
+  border-radius: 8px;
+}
+
+.nb-conflict h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.nb-conflict p {
+  margin: 0 0 6px;
+}
+
+.nb-conflict-text {
+  max-height: 200px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  border-radius: 6px;
+  background: var(--bg-muted);
+}
+
+@media (max-width: 420px) {
+  .field-row {
+    grid-template-columns: 1fr;
   }
 }

@@ -52,6 +52,7 @@ export interface Marker {
   layer: LayerId;
   lat: number;
   lng: number;
+  createdBy: number | null;
   /** ISO timestamps. */
   createdAt: string;
   updatedAt: string;
