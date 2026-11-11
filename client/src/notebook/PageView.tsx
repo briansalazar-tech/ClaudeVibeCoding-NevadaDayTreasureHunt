@@ -10,9 +10,18 @@ import {
   type PlaceRef,
   type Reference,
 } from '@hunt/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAuthorName, useCanEdit, useCanEditFn } from '../account/context';
+import { ApiError } from '../api';
 import { useHuntStore } from '../state/store';
-import { useDeletePage, useLinkMentions, usePageReferences, useSavePage } from './api';
+import {
+  useDeletePage,
+  useLinkMentions,
+  usePageReferences,
+  useSavePage,
+  useSavePageText,
+} from './api';
+import { Byline, Comments } from './Comments';
 import { useNotebook } from './context';
 import { Editor } from './Editor';
 import { Inline, Markdown } from './Markdown';
@@ -24,21 +33,39 @@ const SAVE_DELAY = 800;
 /** One page. Keyed by page id by its parent, so opening another page starts fresh. */
 export function PageView({ page }: { page: Page }) {
   const save = useSavePage();
-  const [editing, setEditing] = useState(!page.body);
+  const canEdit = useCanEdit(page.createdBy);
+  // The version the text being typed started from; the server refuses a save from an older one.
+  const base = useRef(page.version);
+  const saveText = useSavePageText(page.id, base);
+  const [editing, setEditing] = useState(!page.body && canEdit);
   // What's being typed; null shows the saved text (which a rename elsewhere can change).
   const [draft, setDraft] = useState<string | null>(null);
+  // Someone else saved the page while this was being typed: their version.
+  const [conflict, setConflict] = useState<Page | null>(null);
   const body = draft ?? page.body;
 
-  // Autosave a moment after typing stops.
+  const saveDraft = (text: string, after?: () => void) =>
+    saveText.mutate(text, {
+      onSuccess: () => after?.(),
+      onError: (err) => {
+        if (err instanceof ApiError && err.code === 'page-changed')
+          setConflict(err.data.page as Page);
+      },
+    });
+
+  // Autosave a moment after typing stops (not while a conflict waits for a decision).
   useEffect(() => {
-    if (draft === null || draft === page.body) return;
-    const timer = setTimeout(
-      () => save.mutate({ id: page.id, patch: { body: draft } }),
-      SAVE_DELAY,
-    );
+    if (draft === null || draft === page.body || conflict) return;
+    const timer = setTimeout(() => saveDraft(draft), SAVE_DELAY);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- save on text changes only
-  }, [draft]);
+  }, [draft, conflict]);
+
+  const type = (text: string) => {
+    // Typing starts from the text on screen: the saved version, when nothing's typed yet.
+    if (draft === null) base.current = page.version;
+    setDraft(text);
+  };
 
   const finish = () => {
     setEditing(false);
@@ -46,18 +73,31 @@ export function PageView({ page }: { page: Page }) {
       setDraft(null);
       return;
     }
+    if (conflict) return;
     // Keep showing the draft until it's saved.
-    save.mutate({ id: page.id, patch: { body: draft } }, { onSuccess: () => setDraft(null) });
+    saveDraft(draft, () => setDraft(null));
+  };
+
+  const resolve = (keep: 'mine' | 'theirs') => {
+    if (!conflict) return;
+    base.current = conflict.version;
+    setConflict(null);
+    if (keep === 'theirs') {
+      setDraft(null);
+      setEditing(false);
+    } else if (draft !== null) saveDraft(draft);
   };
 
   return (
     <article className="nb-page" aria-labelledby="nb-page-title">
-      <TitleRow page={page} />
+      <TitleRow page={page} canEdit={canEdit} />
+      <PageByline page={page} />
       <div className="nb-page-meta">
         <select
           aria-label="Page type"
           className="text-input nb-select"
           value={page.type}
+          disabled={!canEdit}
           onChange={(e) =>
             save.mutate({ id: page.id, patch: { type: e.target.value as PageType } })
           }
@@ -68,8 +108,33 @@ export function PageView({ page }: { page: Page }) {
             </option>
           ))}
         </select>
-        <SourceLink page={page} />
+        <SourceLink page={page} canEdit={canEdit} />
       </div>
+
+      {conflict && (
+        <section className="nb-conflict" role="alert" aria-labelledby="nb-conflict-heading">
+          <h3 id="nb-conflict-heading">This page changed</h3>
+          <p>
+            <ChangedBy page={conflict} /> saved it while you were editing. Your text isn’t saved
+            yet. Their version:
+          </p>
+          <div className="nb-conflict-text">
+            {conflict.body.trim() ? (
+              <Markdown body={conflict.body} />
+            ) : (
+              <p className="muted">(empty)</p>
+            )}
+          </div>
+          <div className="nb-row">
+            <button type="button" className="small-button" onClick={() => resolve('theirs')}>
+              Use their version
+            </button>
+            <button type="button" className="small-button danger" onClick={() => resolve('mine')}>
+              Replace it with mine
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="nb-section">
         {editing ? (
@@ -77,7 +142,7 @@ export function PageView({ page }: { page: Page }) {
             <Editor
               label="Page text"
               value={body}
-              onChange={setDraft}
+              onChange={type}
               onDone={finish}
               autoFocus
               rows={12}
@@ -88,29 +153,67 @@ export function PageView({ page }: { page: Page }) {
                 Done
               </button>
               <span className="muted nb-save-state" role="status">
-                {save.isPending ? 'Saving…' : save.isError ? save.error.message : ''}
+                {saveText.isPending
+                  ? 'Saving…'
+                  : saveText.isError && !conflict
+                    ? saveText.error.message
+                    : ''}
               </span>
             </div>
           </>
         ) : (
           <>
             {body.trim() ? <Markdown body={body} /> : <p className="muted">Nothing written yet.</p>}
-            <button type="button" className="small-button" onClick={() => setEditing(true)}>
-              Edit
-            </button>
+            {canEdit ? (
+              <button type="button" className="small-button" onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            ) : (
+              <p className="muted nb-read-only">
+                Only <AuthorName id={page.createdBy} /> or an admin can edit this page. Add a
+                comment below.
+              </p>
+            )}
           </>
         )}
+        {save.isError && <p className="form-error">{save.error.message}</p>}
       </section>
 
-      <MapSection page={page} />
-      <Photos pageId={page.id} />
+      <MapSection page={page} canEdit={canEdit} />
+      <Photos pageId={page.id} canAdd={canEdit} />
+      <section className="nb-section" aria-labelledby="nb-comments-heading">
+        <h3 id="nb-comments-heading" className="nb-section-title">
+          Comments
+        </h3>
+        <Comments targetKind="page" targetId={page.id} />
+      </section>
       <References page={page} />
-      <DeletePage page={page} />
+      {canEdit && <DeletePage page={page} />}
     </article>
   );
 }
 
-function TitleRow({ page }: { page: Page }) {
+function AuthorName({ id }: { id: number | null }) {
+  return <>{useAuthorName(id) || 'its author'}</>;
+}
+
+function ChangedBy({ page }: { page: Page }) {
+  return <>{useAuthorName(page.updatedBy) || 'Someone'}</>;
+}
+
+/** "By Sam Owner · 11/9/2026 · last edited by Ada Admin, 11/10/2026". */
+function PageByline({ page }: { page: Page }) {
+  const editor = useAuthorName(page.updatedBy);
+  const edited = page.updatedBy !== null && page.updatedBy !== page.createdBy;
+  return (
+    <p className="muted nb-byline">
+      By <Byline by={page.createdBy} at={page.createdAt} />
+      {edited && ` · last edited by ${editor}, ${new Date(page.updatedAt).toLocaleDateString()}`}
+    </p>
+  );
+}
+
+function TitleRow({ page, canEdit }: { page: Page; canEdit: boolean }) {
   const save = useSavePage();
   const [title, setTitle] = useState(page.title);
   const [shownFor, setShownFor] = useState(page.title);
@@ -147,6 +250,7 @@ function TitleRow({ page }: { page: Page }) {
         id="nb-page-title"
         className="nb-title"
         aria-label="Page title"
+        readOnly={!canEdit}
         value={title}
         onChange={(e) => {
           setTitle(e.target.value);
@@ -170,7 +274,7 @@ function TitleRow({ page }: { page: Page }) {
   );
 }
 
-function SourceLink({ page }: { page: Page }) {
+function SourceLink({ page, canEdit }: { page: Page; canEdit: boolean }) {
   const save = useSavePage();
   const [url, setUrl] = useState(page.sourceUrl);
   const [shownFor, setShownFor] = useState(`${page.id}|${page.sourceUrl}`);
@@ -186,6 +290,7 @@ function SourceLink({ page }: { page: Page }) {
         type="url"
         aria-label="Source link"
         placeholder="Source link (https://…)"
+        readOnly={!canEdit}
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         onBlur={() => {
@@ -208,7 +313,7 @@ function countyLabel(county: CountyId | null | undefined): string {
 }
 
 /** The map side of a page: the place it's about ("This one"), and where it's been put. */
-function MapSection({ page }: { page: Page }) {
+function MapSection({ page, canEdit }: { page: Page; canEdit: boolean }) {
   const { names, countyOf, indexLoading } = useNotebook();
   const save = useSavePage();
   const setPlacingPage = useHuntStore((s) => s.setPlacingPage);
@@ -243,7 +348,7 @@ function MapSection({ page }: { page: Page }) {
             >
               Show on map
             </button>
-            {matches.length > 1 && (
+            {canEdit && matches.length > 1 && (
               <button type="button" className="small-button" onClick={() => tie(null)}>
                 Pick another
               </button>
@@ -269,7 +374,8 @@ function MapSection({ page }: { page: Page }) {
       ) : matches.length > 1 ? (
         <div className="nb-place">
           <p className="muted">
-            {matches.length} places share this name. Pick the one this page is about:
+            {matches.length} places share this name.
+            {canEdit && ' Pick the one this page is about:'}
           </p>
           <ul className="nb-matches">
             {matches.map((e) => (
@@ -285,9 +391,15 @@ function MapSection({ page }: { page: Page }) {
                   >
                     Show
                   </button>
-                  <button type="button" className="small-button" onClick={() => tie(entryPlace(e))}>
-                    This one
-                  </button>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="small-button"
+                      onClick={() => tie(entryPlace(e))}
+                    >
+                      This one
+                    </button>
+                  )}
                 </span>
               </li>
             ))}
@@ -327,31 +439,37 @@ function MapSection({ page }: { page: Page }) {
               >
                 Show
               </button>
-              <button
-                type="button"
-                className="small-button"
-                onClick={() => setPlacingPage(page.id)}
-              >
-                Move
-              </button>
-              <button
-                type="button"
-                className="small-button"
-                onClick={() => save.mutate({ id: page.id, patch: { spot: null } })}
-              >
-                Remove from map
-              </button>
+              {canEdit && (
+                <>
+                  <button
+                    type="button"
+                    className="small-button"
+                    onClick={() => setPlacingPage(page.id)}
+                  >
+                    Move
+                  </button>
+                  <button
+                    type="button"
+                    className="small-button"
+                    onClick={() => save.mutate({ id: page.id, patch: { spot: null } })}
+                  >
+                    Remove from map
+                  </button>
+                </>
+              )}
             </div>
           </>
         ) : (
-          <button
-            type="button"
-            className="small-button"
-            aria-pressed={placing}
-            onClick={() => setPlacingPage(placing ? null : page.id)}
-          >
-            {placing ? 'Click the map… (cancel)' : 'Put on map'}
-          </button>
+          canEdit && (
+            <button
+              type="button"
+              className="small-button"
+              aria-pressed={placing}
+              onClick={() => setPlacingPage(placing ? null : page.id)}
+            >
+              {placing ? 'Click the map… (cancel)' : 'Put on map'}
+            </button>
+          )
         )}
       </div>
     </section>
@@ -367,13 +485,16 @@ function SourceButton({ reference }: { reference: Reference }) {
       ? source.title
       : source.kind === 'note'
         ? `Map note · ${source.title}`
-        : `Marker · ${source.title}`;
+        : source.kind === 'comment'
+          ? `Comment on ${source.pageId ? '' : 'a note on '}${source.title}`
+          : `Marker · ${source.title}`;
   return (
     <button
       type="button"
       className="link-button nb-ref-title"
       onClick={() => {
         if (source.kind === 'page') openPage(source.id);
+        else if (source.pageId) openPage(source.pageId);
         else if (source.place)
           goToPlace(source.place, {
             entry: findEntry(names, source.place),
@@ -389,6 +510,8 @@ function SourceButton({ reference }: { reference: Reference }) {
 function References({ page }: { page: Page }) {
   const refs = usePageReferences(page.id);
   const linkMentions = useLinkMentions();
+  // "Link" changes the text the mention is in, so it's for that text's author or an admin.
+  const canEdit = useCanEditFn();
   const linked = refs.data?.linked ?? [];
   const unlinked = refs.data?.unlinked ?? [];
   return (
@@ -425,16 +548,22 @@ function References({ page }: { page: Page }) {
             <li key={`${r.source.kind}|${r.source.id}`}>
               <div className="nb-row nb-ref-head">
                 <SourceButton reference={r} />
-                <button
-                  type="button"
-                  className="small-button"
-                  disabled={linkMentions.isPending}
-                  onClick={() =>
-                    linkMentions.mutate({ kind: r.source.kind, id: r.source.id, title: page.title })
-                  }
-                >
-                  Link
-                </button>
+                {canEdit(r.source.createdBy) && (
+                  <button
+                    type="button"
+                    className="small-button"
+                    disabled={linkMentions.isPending}
+                    onClick={() =>
+                      linkMentions.mutate({
+                        kind: r.source.kind,
+                        id: r.source.id,
+                        title: page.title,
+                      })
+                    }
+                  >
+                    Link
+                  </button>
+                )}
               </div>
               {r.snippets.map((s, i) => (
                 <p key={i} className="nb-snippet">

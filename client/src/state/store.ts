@@ -5,7 +5,7 @@ import type { BasemapId } from '../map/basemaps';
 
 export type Theme = 'light' | 'dark';
 export type LabelSize = 'S' | 'M' | 'L' | 'XL';
-export type PanelTab = 'county' | 'layers' | 'notebook' | 'display';
+export type PanelTab = 'county' | 'layers' | 'notebook' | 'display' | 'account';
 
 export interface Settings {
   basemap: BasemapId;

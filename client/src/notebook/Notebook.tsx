@@ -1,5 +1,7 @@
 import {
   PAGE_TYPES,
+  canBackUp,
+  canRestore,
   dailyTitle,
   nameKey,
   pageTypeName,
@@ -7,6 +9,7 @@ import {
   type PageType,
 } from '@hunt/shared';
 import { useRef, useState } from 'react';
+import { useOptionalAccount } from '../account/context';
 import { useHuntStore } from '../state/store';
 import { BACKUP_URL, EXPORT_URL, useCreatePage, useOpenPage, useRestore } from './api';
 import { Capture } from './Capture';
@@ -23,13 +26,17 @@ export function Notebook() {
   const pageBack = useHuntStore((s) => s.pageBack);
   const setFull = useHuntStore((s) => s.setNotebookFull);
   const open = useOpenPage();
+  const account = useOptionalAccount();
   const page = pageId === null ? undefined : pages.find((p) => p.id === pageId);
 
-  const today = () =>
+  // Daily notes are each person's own: "November 9, 2026 (John Smith)".
+  const today = () => {
+    const date = dailyTitle(new Date());
     open.mutate(
-      { title: dailyTitle(new Date()), type: 'daily' },
+      { title: account ? `${date} (${account.user.name})` : date, type: 'daily' },
       { onSuccess: (p) => openPage(p.id) },
     );
+  };
 
   return (
     <div className="notebook">
@@ -86,6 +93,9 @@ function snippet(body: string): string {
 
 function NotebookHome() {
   const { pages } = useNotebook();
+  const account = useOptionalAccount();
+  const author = (id: number | null) =>
+    account ? ((id !== null ? account.people.get(id)?.name : undefined) ?? 'Former user') : null;
   const openPage = useHuntStore((s) => s.openPage);
   const outlines = useHuntStore((s) => s.notebookOutlines);
   const setOutlines = useHuntStore((s) => s.setNotebookOutlines);
@@ -155,7 +165,9 @@ function NotebookHome() {
                   {(p.place || p.spot) && <span className="nb-on-map"> · on map</span>}
                 </span>
                 <span className="muted">
-                  {pageTypeName(p.type)} · {new Date(p.updatedAt).toLocaleDateString()}
+                  {pageTypeName(p.type)}
+                  {author(p.createdBy) && ` · ${author(p.createdBy)}`} ·{' '}
+                  {new Date(p.updatedAt).toLocaleDateString()}
                 </span>
                 {snippet(p.body) && <span className="nb-page-list-snippet">{snippet(p.body)}</span>}
               </button>
@@ -178,10 +190,12 @@ function NotebookHome() {
           <a className="small-button" href={EXPORT_URL} download>
             Export notebook (.md)
           </a>
-          <a className="small-button" href={BACKUP_URL} download>
-            Backup (.json)
-          </a>
-          <Restore />
+          {(!account || canBackUp(account.user)) && (
+            <a className="small-button" href={BACKUP_URL} download>
+              Backup (.json)
+            </a>
+          )}
+          {(!account || canRestore(account.user)) && <Restore />}
         </div>
       </div>
     </div>
@@ -261,8 +275,9 @@ function Restore() {
       {file && (
         <div className="nb-restore" role="alertdialog" aria-label="Restore from backup">
           <p>
-            Replace <strong>everything</strong> (pages, notes, photos, markers) with “{file.name}”?
-            The current database is saved in <code>server/data/backups</code> first.
+            Replace <strong>everything</strong> (pages, notes, comments, photos, markers) with “
+            {file.name}”? Accounts stay as they are. The current database is saved in{' '}
+            <code>server/data/backups</code> first.
           </p>
           <div className="nb-row">
             <button

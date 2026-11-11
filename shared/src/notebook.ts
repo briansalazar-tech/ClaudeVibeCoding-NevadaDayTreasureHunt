@@ -59,6 +59,8 @@ export const pagePatchSchema = z
     sourceUrl: z.string().trim().max(2000),
     place: placeRefSchema.nullable(),
     spot: spotSchema.nullable(),
+    /** The `version` the edited text started from; a newer one on the server is a conflict (409). */
+    baseVersion: z.number().int().positive(),
   })
   .partial();
 
@@ -84,6 +86,11 @@ export interface Page {
   place: PlaceRef | null;
   /** Where "Put on map" put it. */
   spot: Spot | null;
+  /** User ids; null for content whose author isn't among the current users ("Former user"). */
+  createdBy: number | null;
+  updatedBy: number | null;
+  /** Goes up each time the text changes, so two people's edits can't overwrite each other. */
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -110,6 +117,7 @@ export interface PlaceNote {
   id: number;
   place: PlaceRef;
   body: string;
+  createdBy: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,21 +129,26 @@ export interface Photo {
   place: PlaceRef | null;
   caption: string;
   contentType: string;
+  createdBy: number | null;
   createdAt: string;
 }
 
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 
-/** Where `[[links]]` can be written: pages, notes on map places, and custom markers. */
-export type SourceKind = 'page' | 'note' | 'marker';
+/** Where `[[links]]` can be written: pages, notes on map places, custom markers, and comments. */
+export type SourceKind = 'page' | 'note' | 'marker' | 'comment';
 
 export interface ReferenceSource {
   kind: SourceKind;
   id: number;
-  /** The page title, the place the note is on, or the marker name. */
+  /** The page title, the place the note is on, the marker name, or what a comment is on. */
   title: string;
-  /** For a note or marker: where it is, so the reference can fly there. */
+  /** For a note or marker (or a comment on a note): where it is, so the reference can fly there. */
   place?: PlaceRef;
+  /** For a comment on a page: the page. */
+  pageId?: number;
+  /** Who wrote the text, so the client knows whether "Link" may change it. */
+  createdBy: number | null;
 }
 
 export interface Reference {
@@ -151,7 +164,7 @@ export interface PageReferences {
 
 /** POST /api/references/link: turn the plain mentions of a page in one source into links. */
 export const linkMentionsSchema = z.object({
-  kind: z.enum(['page', 'note', 'marker']),
+  kind: z.enum(['page', 'note', 'marker', 'comment']),
   id: z.number().int().positive(),
   title,
 });
@@ -168,15 +181,57 @@ export interface PlaceNotebook {
   /** Other pages, notes and markers that link to it. */
   mentions: ReferenceSource[];
   notes: PlaceNote[];
+  /** Comments per note id. */
+  commentCounts: Record<number, number>;
   photos: Photo[];
 }
 
-/** Everything in the database, for GET /api/backup and POST /api/restore. */
+/** What a comment is on. */
+export const COMMENT_TARGETS = ['page', 'note'] as const;
+export type CommentTarget = (typeof COMMENT_TARGETS)[number];
+
+const commentBody = z.string().trim().min(1, 'Write something first').max(20_000);
+
+export const commentInputSchema = z.object({
+  targetKind: z.enum(COMMENT_TARGETS),
+  targetId: z.number().int().positive(),
+  body: commentBody,
+});
+
+export const commentPatchSchema = z.object({ body: commentBody });
+
+export type CommentInput = z.infer<typeof commentInputSchema>;
+
+/** A comment on a page or a place note: how people add to what they can't edit. */
+export interface Comment {
+  id: number;
+  targetKind: CommentTarget;
+  targetId: number;
+  body: string;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A backup's record of who wrote what, matched to the current users by username on restore. */
+export interface BackupAuthor {
+  id: number;
+  username: string;
+  firstName: string;
+  lastName: string;
+}
+
+/**
+ * The notebook and markers, for GET /api/backup and POST /api/restore. Accounts aren't in it
+ * (no password hashes or sessions), only the authors' names.
+ */
 export interface Backup {
   app: 'nevada-day-hunt-map';
-  version: 1;
+  /** 1: before accounts (no authors). */
+  version: 1 | 2;
   exportedAt: string;
   tables: Record<string, Record<string, unknown>[]>;
+  authors?: BackupAuthor[];
   /** Photo files, base64, by photo id. */
   files: Record<string, string>;
 }

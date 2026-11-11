@@ -1,9 +1,7 @@
 import type { CountyCollection, GeocodeResponse } from '@hunt/shared';
-import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createApp } from '../src/app.js';
-import { openDatabase } from '../src/db/client.js';
 import { Geocoder, countyAreas } from '../src/geocoder.js';
+import { testApp, type Agent } from './helpers.js';
 
 /** Lyon as a box around Fernley, for the in-area check. */
 const counties: CountyCollection = {
@@ -56,11 +54,9 @@ function json(body: unknown, status = 200): Response {
 
 let close: () => void;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
-let app: ReturnType<typeof createApp>;
+let api: Agent;
 
-beforeEach(() => {
-  const opened = openDatabase(':memory:');
-  close = opened.close;
+beforeEach(async () => {
   fetchMock = vi.fn<typeof fetch>();
   const geocoder = new Geocoder({
     areas: countyAreas(counties),
@@ -70,7 +66,9 @@ beforeEach(() => {
     minIntervalMs: 0,
     fetch: fetchMock,
   });
-  app = createApp(opened.db, { geocoder });
+  const t = await testApp({ geocoder });
+  api = t.owner;
+  close = t.close;
 });
 afterEach(() => close());
 
@@ -79,10 +77,7 @@ const url = (call: number) => new URL(fetchMock.mock.calls[call]![0]);
 describe('/api/geocode', () => {
   it('asks Nominatim within the hunt area and drops matches outside the counties', async () => {
     fetchMock.mockResolvedValueOnce(json([fernleyHall, lasVegas]));
-    const res = await request(app)
-      .get('/api/geocode')
-      .query({ q: '595 Silver Lace Blvd' })
-      .expect(200);
+    const res = await api.get('/api/geocode').query({ q: '595 Silver Lace Blvd' }).expect(200);
     const body = res.body as GeocodeResponse;
     expect(body).toMatchObject({ source: 'nominatim', outside: 1, cached: false });
     expect(body.results).toEqual([
@@ -103,8 +98,8 @@ describe('/api/geocode', () => {
 
   it('answers a repeated search from the cache', async () => {
     fetchMock.mockResolvedValueOnce(json([fernleyHall]));
-    await request(app).get('/api/geocode').query({ q: '595 Silver Lace Blvd' }).expect(200);
-    const again = await request(app)
+    await api.get('/api/geocode').query({ q: '595 Silver Lace Blvd' }).expect(200);
+    const again = await api
       .get('/api/geocode')
       .query({ q: '  595 silver lace  BLVD ' })
       .expect(200);
@@ -126,7 +121,7 @@ describe('/api/geocode', () => {
         },
       }),
     );
-    const res = await request(app)
+    const res = await api
       .get('/api/geocode')
       .query({ q: '595 Silver Lace Blvd, Fernley' })
       .expect(200);
@@ -136,15 +131,15 @@ describe('/api/geocode', () => {
 
   it('reports a failure when both services are down, and does not cache it', async () => {
     fetchMock.mockResolvedValue(json({}, 503));
-    const res = await request(app).get('/api/geocode').query({ q: 'Main Street' }).expect(502);
+    const res = await api.get('/api/geocode').query({ q: 'Main Street' }).expect(502);
     expect((res.body as { error: string }).error).toMatch(/unavailable/);
     fetchMock.mockReset();
     fetchMock.mockResolvedValueOnce(json([fernleyHall]));
-    await request(app).get('/api/geocode').query({ q: 'Main Street' }).expect(200);
+    await api.get('/api/geocode').query({ q: 'Main Street' }).expect(200);
   });
 
   it('rejects a query that is too short', async () => {
-    await request(app).get('/api/geocode').query({ q: 'ab' }).expect(400);
+    await api.get('/api/geocode').query({ q: 'ab' }).expect(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

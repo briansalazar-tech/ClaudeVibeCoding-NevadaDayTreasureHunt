@@ -11,3 +11,4 @@ export * from './past-finds.js';
 export * from './places.js';
 export * from './routes.js';
 export * from './search.js';
+export * from './users.js';

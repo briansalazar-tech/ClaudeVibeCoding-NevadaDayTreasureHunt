@@ -57,7 +57,7 @@ export function PlaceList({
         lng: m.lng,
         lat: m.lat,
       }));
-    if (mine.length) out.push({ layer: 'custom', name: 'Your markers', items: mine });
+    if (mine.length) out.push({ layer: 'custom', name: 'Custom markers', items: mine });
     for (const { id } of DATA_LAYERS) {
       if (id === 'land') continue;
       const items = placeItems(byLayer[id], id, county);

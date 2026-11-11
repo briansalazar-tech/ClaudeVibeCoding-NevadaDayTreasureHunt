@@ -1,4 +1,7 @@
 import type {
+  Comment,
+  CommentInput,
+  CommentTarget,
   NoteInput,
   OpenPage,
   Page,
@@ -26,8 +29,8 @@ const NOTES = ['notes'] as const;
  */
 function refreshNotebook(client: QueryClient) {
   return Promise.all(
-    [PAGES, NOTES, ['page-refs'], ['place-notebook'], ['photos'], ['markers']].map((queryKey) =>
-      client.invalidateQueries({ queryKey }),
+    [PAGES, NOTES, ['page-refs'], ['place-notebook'], ['photos'], ['markers'], ['comments']].map(
+      (queryKey) => client.invalidateQueries({ queryKey }),
     ),
   );
 }
@@ -91,6 +94,25 @@ export function useSavePage() {
   });
 }
 
+/**
+ * Saves a page's text from the version it was started from (`base`), and moves `base` on after
+ * each save. Saves run one at a time, so each sends the version the last one made. A save from
+ * an older version (someone else saved in between) fails with code `page-changed`.
+ */
+export function useSavePageText(id: number, baseRef: { current: number }) {
+  const client = useQueryClient();
+  return useMutation({
+    scope: { id: `page-text-${id}` },
+    mutationFn: (body: string) =>
+      api<RenameResult>(`/api/pages/${id}`, json('PATCH', { body, baseVersion: baseRef.current })),
+    onSuccess: ({ page }) => {
+      baseRef.current = page.version;
+      cachePage(client, page);
+      return refreshNotebook(client);
+    },
+  });
+}
+
 export function useDeletePage() {
   const client = useQueryClient();
   return useMutation({
@@ -141,6 +163,36 @@ export function useDeleteNote() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api<void>(`/api/notes/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshNotebook(client),
+  });
+}
+
+export function useComments(targetKind: CommentTarget, targetId: number, enabled = true) {
+  return useQuery({
+    queryKey: ['comments', targetKind, targetId],
+    queryFn: () =>
+      api<Comment[]>(
+        `/api/comments?${new URLSearchParams({ targetKind, targetId: String(targetId) }).toString()}`,
+      ),
+    enabled,
+  });
+}
+
+export function useSaveComment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number | null; input: CommentInput }) =>
+      id === null
+        ? api<Comment>('/api/comments', json('POST', input))
+        : api<Comment>(`/api/comments/${id}`, json('PATCH', { body: input.body })),
+    onSuccess: () => refreshNotebook(client),
+  });
+}
+
+export function useDeleteComment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`/api/comments/${id}`, { method: 'DELETE' }),
     onSuccess: () => refreshNotebook(client),
   });
 }

@@ -14,11 +14,6 @@ import { useHuntStore } from './state/store';
 
 export function App() {
   const state = useBoundaryData();
-  const theme = useHuntStore((s) => s.theme);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
